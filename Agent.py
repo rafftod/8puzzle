@@ -1,12 +1,8 @@
 import random
 from collections import deque
-
 import numpy as np
 import tensorflow as tf
-from numpy.random._generator import default_rng
-from rl.agents import DQNAgent
-from rl.policy import BoltzmannQPolicy
-from rl.memory import SequentialMemory
+from numpy.random import default_rng
 import gym
 
 
@@ -140,4 +136,4 @@ class QNNAgent:
         self.model.load_weights(filename)
 
     def test(self, env: gym.Env):
-        self.dqn.test(env, visualize=False)
+        pass
