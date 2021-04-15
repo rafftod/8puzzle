@@ -2,7 +2,7 @@ import pygame, sys, os, random
 import gym
 import numpy as np
 
-from Agent import QNNAgent
+from Agent import DQNAgent
 
 FPS = 60
 
@@ -318,7 +318,7 @@ class SlidePuzzle(gym.Env):
         """
         wantToQuitGame = False
         finished = False
-        agent = QNNAgent(self)
+        agent = DQNAgent(self)
         while not finished and not wantToQuitGame:
             dt = fpsclock.tick(FPS)
             screen.fill((0, 0, 0))
@@ -524,6 +524,12 @@ def main():
             program.playHumanGame(fpsclock, screen)
         del program
 
+
+def func(ab,c):
+    """
+
+    """
+    pass
 
 if __name__ == '__main__':
     main()
