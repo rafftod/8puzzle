@@ -2,7 +2,7 @@ import random
 from collections import deque
 import numpy as np
 import tensorflow as tf
-# from tensorflow.keras.models import Sequential
+from tqdm import tqdm
 from numpy.random import default_rng
 import gym
 
@@ -48,10 +48,10 @@ class DQNAgent:
         :return: the created model.
         """
         tf.compat.v1.enable_eager_execution()  # to allow numpy() function
-        model = tf.keras.model.Sequential()
+        model = tf.keras.models.Sequential()
         # model.add(tf.keras.Input(shape=(self.observation_space_size,)))
         # Input layer with input size of observation_space_size and output size of 24
-        model.add(tf.keras.layers.Dense(24, input_shape=self.observation_space_size, activation="relu"))
+        model.add(tf.keras.layers.Dense(24, input_dim=self.observation_space_size, activation="relu"))
         # Hidden layers
         model.add(tf.keras.layers.Dense(48, activation="relu"))
         model.add(tf.keras.layers.Dense(24, activation="relu"))
@@ -113,128 +113,38 @@ class DQNAgent:
             # take a random action
             return self.env.action_space.sample()
         # else, return what the model predicts
-        return np.argmax(self.model.predict(state)[0])[0]
+        return int(np.argmax(self.model.predict(state)[0]))
 
-    def train(self, env: gym.Env, episodes=10000):
-        pass
-        # # random number generator
-        # rng = default_rng()
-        # # this memory queue will store :
-        # # - action history
-        # # - state history
-        # # - new state observed history
-        # # - reward history
-        # # - done history (that indicates if the game ended)
-        # memory = deque(maxlen=100000)
-        # # Number of moves while we always take a random action
-        # epsilon_random_moves = 500
-        # # Number of moves for exploration
-        # epsilon_greedy_frames = 10000
-        # # Action count before starting training
-        # actions_before_update = 100
-        # # Network update rate
-        # network_update_rate = 10000
-        # # epsilon-greedy
-        # epsilon = 1.0
-        #
-        # for i_episode in range(episodes):
-        #     state = np.array(env.reset())
-        #     episode_reward = 0
-        #     state = np.reshape(state, [1, self.observation_space_size])
-        #     moves_count = 0  # number of moves done in this episode
-        #
-        #     while True:
-        #         moves_count += 1
-        #
-        #         if moves_count < epsilon_random_moves or epsilon > np.random.rand(1)[0]:
-        #             # take a random action and see what happens
-        #             action = np.random.randint(self.action_space_size)
-        #         else:
-        #             # predict Q-value from current state
-        #             state_tensor = tf.convert_to_tensor(state)
-        #             state_tensor = tf.expand_dims(state_tensor, 0)
-        #             action_probs = self.model(state_tensor, training=False)
-        #             action = tf.argmax(action_probs[0]).numpy()
-        #
-        #         # TODO
-        #         # print("e:", eps, " cnt: ", cnt, " ga: ", DISCOUNT)
-        #         if rng.random() > eps:
-        #             action = tf.argmax(action_probs[0]).numpy()
-        #         else:
-        #             action = rng.integers(0, env.action_space.n)
-        #
-        #         # perform action on enviroment
-        #         print(action)
-        #         print(state)
-        #         newState, reward, done, info = env.step(action)
-        #         print(newState)
-        #         newState = np.reshape(newState, [1, self.observation_space_size])
-        #         # newState = tf.expand_dims(tf.convert_to_tensor(newState), 0)
-        #         memory.append((state, action, reward, newState, done))
-        #
-        #         histo = []
-        #         # if cnt % 5 == 0 and len(memory) > 32:
-        #         if len(memory) > 32:
-        #             # batch = memory[-16:]
-        #             batch = random.sample(memory, 32)
-        #             states = []
-        #             targets = []
-        #             for stat, actio, rewar, next_stat, don in batch:
-        #                 # print(state, action, reward, next_state, done)
-        #                 if don:
-        #                     target = -1
-        #                     # print("shoulnd happen!", stat, actio, rewar, don)
-        #                 else:
-        #                     target = rewar + self.discount_rate * np.amax(
-        #                         model_target.predict(next_stat)[0]
-        #                     )
-        #                 # target = R(s,a) + gamma * max Q`(s`,a`)
-        #                 # target (max Q` value) is output of Neural Network which takes s` as an input
-        #                 # amax(): flatten the lists (make them 1 list) and take max value
-        #
-        #                 train_target = self.model.predict(stat)
-        #                 # s --> NN --> Q(s,a)=train_target
-        #                 train_target[0][actio] = target
-        #                 states.append(stat[0])
-        #                 targets.append(train_target[0])
-        #
-        #             hist = self.model.fit(
-        #                 np.array(states), np.array(targets), epochs=1, verbose=0
-        #             )
-        #             histo.append(hist.history["loss"])
-        #             # verbose: dont show loss and epoch
-        #         state = newState
-        #
-        #         # print("rew: ", reward, done)
-        #
-        #         if done and i_episode % 10 == 0:
-        #             self.model.save(f"saved/cartpoletest-{i_episode}", save_format="tf")
-        #
-        #         if done and i_episode % 5 == 0:
-        #             model_target.set_weights(self.model.get_weights())
-        #
-        #         if done:
-        #             print(
-        #                 f"{i_episode} - done: resolved after: {cnt}, {eps} - loss: {np.mean(histo)}"
-        #             )
-        #             cnt_l.append(cnt)
-        #             break
-        #
-        #     # # print(cnt_l)
-        #     # if len(cnt_l) > 100:
-        #     #     cnt_l.pop(0)
-        #
-        #     # if sum(cnt_l) > 100 * 185:
-        #     #     print("Learned, lets test")
-        #     #     state = env.reset()
-        #     #     while True:
-        #     #         env.render()  # if running RL comment this out
-        #     #         discreteState = get_discrete_state(state[features], bins, len(bins))
-        #     #         action = np.argmax(qTable[discreteState])
-        #     #         state, reward, done, info = env.step(action)
+    def train(self, episodes=10000):
+        # eye candy progress bar
+        progress_bar = tqdm(range(episodes))
+        for episode in progress_bar:
+            # reset for each episode
+            state = self.env.reset()
+            # reshape to feed the NN
+            state = np.reshape(state, [1, self.observation_space_size])
+            # run while game is not solved
+            done = False
+            moves = 0
+            while not done:
+                moves += 1
+                # decide what action to take
+                action = self.get_action(state)
+                # act
+                new_state, reward, done, _ = self.env.step(action)
+                new_state = np.reshape(new_state, [1, self.observation_space_size])
+                # remember consequences of our acts
+                self.remember(state, action, reward, new_state, done)
+                # train the model
+                self.replay()
+                # update the target
+                self.target_train()
+                # go into new state
+                state = new_state
+            # update progress bar
+            progress_bar.set_description(f"Episode {episode} - Succeeded after {moves} moves")
+            #  print(f"Episode {episode} completed in {moves} moves.")
+            self.save_model(f"episode_{episode}.model")
 
-    def restore_model(self, filename: str):
-        self.model.load_weights(filename)
-
-    def test(self, env: gym.Env):
-        pass
+    def save_model(self, filename: str):
+        self.model.save(filename)

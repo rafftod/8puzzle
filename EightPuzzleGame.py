@@ -328,7 +328,7 @@ class SlidePuzzle(gym.Env):
             wantToQuitGame = self.catchGameEvents(False, fpsclock, screen)
             # AI behaviour
             # training
-            agent.train(self)
+            agent.train()
             self.update(dt)
             finished = self.checkGameState(fpsclock, screen)
 
