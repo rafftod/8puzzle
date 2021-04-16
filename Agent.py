@@ -115,7 +115,11 @@ class DQNAgent:
         # else, return what the model predicts
         return int(np.argmax(self.model.predict(state)[0]))
 
-    def train(self, episodes=10000):
+    def train(self, episodes=10000) -> None:
+        """
+        Trains the model on episodes
+        :param episodes: number of games the agent will play
+        """
         # eye candy progress bar
         progress_bar = tqdm(range(episodes))
         for episode in progress_bar:
