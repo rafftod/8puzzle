@@ -179,14 +179,28 @@ class SlidePuzzle(gym.Env):
             reward = -50  # illegal move is punished
         obs = [self.tiles.index((j, i)) + 1 for i in range(3) for j in range(3)]
         done = self.isWin()
-        return obs, reward, done, {}
+        return obs, reward, done, {"moves": self.nb_move}
 
-    def reset(self):
+    def reset(self, episode):
         """
         gym environment reset
         """
-        self.shuffle()  # shuffle the board state
+        if episode < 30:
+            self.tiles = self.winCdt[:]
+            self.random()
+        elif episode < 100:
+            self.tiles = self.winCdt[:]
+            self.random()
+            self.random()
+        elif episode < 200:
+            self.tiles = self.winCdt[:]
+            self.random()
+            self.random()
+            self.random()
+        else:
+            self.shuffle()  # shuffle the board state
         self.nb_move = 0  # reset number of moves
+        self.prev = None
         return [self.tiles.index((j, i)) + 1 for i in range(3) for j in range(3)]  # return new board state
 
     def render(self, mode='human'):

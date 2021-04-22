@@ -1,3 +1,4 @@
+import os
 import random
 from collections import deque
 import numpy as np
@@ -5,7 +6,8 @@ import tensorflow as tf
 from tqdm import tqdm
 from numpy.random import default_rng
 import gym
-
+import glob
+import re
 
 class DQNAgent:
     """
@@ -36,6 +38,12 @@ class DQNAgent:
 
         # This model is used to predict actions to take
         self.model = self.create_model()
+
+        list_of_files = glob.glob('./*.model')
+        latest_file = max(list_of_files, key=os.path.getctime)
+        self.load_model(latest_file)
+        self.file_number = int(re.findall(r'\d+', latest_file)[0])
+
         # This target model is used to control what actions the model should take
         self.model_target = self.create_model()
         # This double-model mode of function is required to improve convergence
@@ -53,11 +61,12 @@ class DQNAgent:
         # Input layer with input size of observation_space_size and output size of 24
         model.add(tf.keras.layers.Dense(24, input_dim=self.observation_space_size, activation="relu"))
         # Hidden layers
-        model.add(tf.keras.layers.Dense(48, activation="relu"))
+        #model.add(tf.keras.layers.Dense(24, activation="relu"))
         model.add(tf.keras.layers.Dense(24, activation="relu"))
         # Output layer that has action_space_size outputs
         model.add(tf.keras.layers.Dense(self.action_space_size, activation="linear"))
         model.compile(loss="mse", optimizer=tf.keras.optimizers.Adam(lr=self.learning_rate))
+
         return model
 
     def remember(self, state, action, reward, new_state, done: bool) -> None:
@@ -121,21 +130,29 @@ class DQNAgent:
         :param episodes: number of games the agent will play
         """
         # eye candy progress bar
-        progress_bar = tqdm(range(episodes))
+        progress_bar = tqdm(range(self.file_number+1, episodes))
         for episode in progress_bar:
             # reset for each episode
-            state = self.env.reset()
+            state = self.env.reset(episode)
             # reshape to feed the NN
             state = np.reshape(state, [1, self.observation_space_size])
             # run while game is not solved
             done = False
             moves = 0
-            while not done:
-                moves += 1
+            while not done and moves < 50:
                 # decide what action to take
+                moves += 1
+                if moves % 10 == 0:
+                    print(f"moves: {moves}")
                 action = self.get_action(state)
                 # act
+                """print(f"moves: {moves}")
+                print(f"old state: {state}")
+                print(f"action: {action}")"""
                 new_state, reward, done, _ = self.env.step(action)
+
+                """print(f"new state: {new_state}")
+                print(f"reward: {reward}")"""
                 new_state = np.reshape(new_state, [1, self.observation_space_size])
                 # remember consequences of our acts
                 self.remember(state, action, reward, new_state, done)
@@ -152,3 +169,8 @@ class DQNAgent:
 
     def save_model(self, filename: str):
         self.model.save(filename)
+
+    def load_model(self, filename):
+        print(f"loading models from: {filename}")
+        self.model = tf.keras.models.load_model(filename)
+        self.model_target = tf.keras.models.load_model(filename)
