@@ -61,10 +61,11 @@ class DQNAgent:
         model = tf.keras.models.Sequential()
         # model.add(tf.keras.Input(shape=(self.observation_space_size,)))
         # Input layer with input size of observation_space_size and output size of 24
-        model.add(tf.keras.layers.Dense(24, input_dim=self.observation_space_size, activation="relu"))
+        model.add(tf.keras.layers.Dense(250, input_dim=self.observation_space_size, activation="relu"))
         # Hidden layers
         #model.add(tf.keras.layers.Dense(24, activation="relu"))
-        model.add(tf.keras.layers.Dense(24, activation="relu"))
+        model.add(tf.keras.layers.Dense(250, activation="relu"))
+        model.add(tf.keras.layers.Dense(250, activation="relu"))
         # Output layer that has action_space_size outputs
         model.add(tf.keras.layers.Dense(self.action_space_size, activation="linear"))
         model.compile(loss="mse", optimizer=tf.keras.optimizers.Adam(lr=self.learning_rate))
