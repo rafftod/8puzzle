@@ -169,6 +169,16 @@ class SlidePuzzle(gym.Env):
     gym environment functions
     """
 
+    def format_tiles(self):
+        formatted_tiles = [0]*72
+        for i in range(3):
+            for j in range(3):
+                pos = self.tiles.index((j, i))
+                if pos != 8:
+                    formatted_tiles[pos*9 + i*3 + j] = 1
+
+        return formatted_tiles
+
     def step(self, action):
         # action is the coordinates of the tiles we want to move
         moved_tile = self.adjacent()[action]
@@ -178,7 +188,7 @@ class SlidePuzzle(gym.Env):
             print(reward)
         else:
             reward = -50  # illegal move is punished
-        obs = [self.tiles.index((j, i)) + 1 for i in range(3) for j in range(3)]
+        obs = self.format_tiles()
         done = self.isWin()
         return obs, reward, done, {"moves": self.nb_move}
 
@@ -193,6 +203,7 @@ class SlidePuzzle(gym.Env):
             self.tiles = self.winCdt[:]
             self.random()
             self.random()
+            self.shuffle()
         elif episode < 200:
             self.tiles = self.winCdt[:]
             self.random()

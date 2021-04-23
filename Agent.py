@@ -63,7 +63,7 @@ class DQNAgent:
         # Input layer with input size of observation_space_size and output size of 24
         model.add(tf.keras.layers.Dense(24, input_dim=self.observation_space_size, activation="relu"))
         # Hidden layers
-        #model.add(tf.keras.layers.Dense(24, activation="relu"))
+        model.add(tf.keras.layers.Dense(24, activation="relu"))
         model.add(tf.keras.layers.Dense(24, activation="relu"))
         # Output layer that has action_space_size outputs
         model.add(tf.keras.layers.Dense(self.action_space_size, activation="linear"))
@@ -144,8 +144,7 @@ class DQNAgent:
             while not done and moves < 50:
                 # decide what action to take
                 moves += 1
-                if moves % 10 == 0:
-                    print(f"moves: {moves}")
+                print(f"moves: {moves}")
                 action = self.get_action(state)
                 # act
                 """print(f"moves: {moves}")
@@ -153,8 +152,8 @@ class DQNAgent:
                 print(f"action: {action}")"""
                 new_state, reward, done, _ = self.env.step(action)
 
-                """print(f"new state: {new_state}")
-                print(f"reward: {reward}")"""
+                print(f"new state: {new_state}")
+                """"print(f"reward: {reward}")"""
                 new_state = np.reshape(new_state, [1, self.observation_space_size])
                 # remember consequences of our acts
                 self.remember(state, action, reward, new_state, done)
