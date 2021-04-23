@@ -174,7 +174,8 @@ class SlidePuzzle(gym.Env):
         moved_tile = self.adjacent()[action]
         if self.in_grid(moved_tile) and moved_tile != self.prev:
             self.switch(moved_tile)
-            reward = 10 if self.isWin() else 0
+            reward = 10 if self.isWin() else -self.manhattan_distance()
+            print(reward)
         else:
             reward = -50  # illegal move is punished
         obs = [self.tiles.index((j, i)) + 1 for i in range(3) for j in range(3)]
@@ -210,6 +211,11 @@ class SlidePuzzle(gym.Env):
 
         pass
 
+    def manhattan_distance(self):
+        dist = 0
+        for target, tile in zip(self.winCdt, self.tiles):
+            dist += abs(target[0]-tile[0]) + abs(target[1]-tile[1])
+        return dist
 
 def main():
     """

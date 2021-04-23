@@ -40,10 +40,12 @@ class DQNAgent:
         self.model = self.create_model()
 
         list_of_files = glob.glob('./*.model')
-        latest_file = max(list_of_files, key=os.path.getctime)
-        self.load_model(latest_file)
-        self.file_number = int(re.findall(r'\d+', latest_file)[0])
-
+        try:
+            latest_file = max(list_of_files, key=os.path.getctime)
+            self.load_model(latest_file)
+            self.file_number = int(re.findall(r'\d+', latest_file)[0])
+        except ValueError:
+            self.file_number=0
         # This target model is used to control what actions the model should take
         self.model_target = self.create_model()
         # This double-model mode of function is required to improve convergence
