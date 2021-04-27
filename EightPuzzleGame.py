@@ -27,7 +27,7 @@ class SlidePuzzle(gym.Env):
         self.nb_games = 0
 
         self.training = training
-        self.difficulties = [(4, 800, 6), (6, 2000, 10), (10, 7500, 20), (20, 9000, 35)] # list of (nb_shuffles, episode_cap, nb_tries)
+        self.difficulties = [(10, 15000, 15)] # list of (nb_shuffles, episode_cap, nb_tries)
         # gym part
 
         # Reward is :
@@ -126,12 +126,16 @@ class SlidePuzzle(gym.Env):
         pos_list = [pos for pos in adj if self.in_grid(pos) and pos != self.prev]
         return random.choice(pos_list)
 
-    def shuffle(self):
+    def shuffle(self, difficulty=None):
         """
         Shuffle tiles.
         """
-        while not self.isSolvable():
-            random.shuffle(self.tiles)
+        if difficulty is None:
+            while not self.isSolvable():
+                random.shuffle(self.tiles)
+        else:
+            while self.manhattan_distance() < difficulty:
+                self.random()
 
     def isSolvable(self):
         """
@@ -193,7 +197,6 @@ class SlidePuzzle(gym.Env):
             reward = -50  # illegal move is punished
         obs = self.format_tiles()
         done = self.isWin()
-        print(reward, end=", ")
         return obs, reward, done, {"moves": self.nb_move}
 
     def reset(self):
@@ -203,8 +206,7 @@ class SlidePuzzle(gym.Env):
         self.tiles = self.winCdt[:]
         for difficulty, episode_cap, _ in self.difficulties:
             if self.nb_games < episode_cap:
-                for shuffle in range(difficulty):
-                    self.random()
+                self.shuffle(difficulty)
                 break
         else:
             self.shuffle()  # shuffle the board state
@@ -223,7 +225,7 @@ class SlidePuzzle(gym.Env):
 
     def manhattan_distance(self):
         dist = 0
-        for target, tile in zip(self.winCdt, self.tiles):
+        for target, tile in zip(self.winCdt[:-1], self.tiles[:-1]):
             dist += abs(target[0]-tile[0]) + abs(target[1]-tile[1])
         return dist
 

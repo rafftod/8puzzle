@@ -16,7 +16,6 @@ class DQNAgent:
     Class that represents the Q-Learning agent with neural network.
 
     """
-
     def __init__(self, env: gym.Env, discount_rate=0.9, learning_rate=0.001, max_memory=3000):
         # Store environment
         self.env = env
@@ -40,6 +39,10 @@ class DQNAgent:
 
         # This model is used to predict actions to take
         self.model = self.create_model()
+        self.target_model = self.create_model()
+        self.target_model.set_weights(self.model.get_weights())
+        self.target_update_counter = 0
+
         list_of_files = glob.glob('./*.model')
         try:
             latest_file = max(list_of_files, key=os.path.getctime)
@@ -49,9 +52,6 @@ class DQNAgent:
             self.episode_number=0
         # This target model is used to control what actions the model should take
             # Target network
-        self.target_model = self.create_model()
-        self.target_model.set_weights(self.model.get_weights())
-        self.target_update_counter = 0
         # This double-model mode of function is required to improve convergence
         # as we are training while exploring and testing
 
@@ -84,7 +84,7 @@ class DQNAgent:
         self.memory.append(transition)
 
     # Trains main network every step during episode
-    def train(self, terminal_state, step):
+    def train(self, terminal_state):
 
         # Start training only if certain number of samples is already saved
         if len(self.memory) < MIN_REPLAY_MEMORY_SIZE:
@@ -94,12 +94,12 @@ class DQNAgent:
         minibatch = random.sample(self.memory, MINIBATCH_SIZE)
 
         # Get current states from minibatch, then query NN model for Q values
-        current_states = np.array([transition[0] for transition in minibatch]) / 255
+        current_states = np.array([transition[0] for transition in minibatch])
         current_qs_list = self.model.predict(current_states)
 
         # Get future states from minibatch, then query NN model for Q values
         # When using target network, query it, otherwise main network should be queried
-        new_current_states = np.array([transition[3] for transition in minibatch]) / 255
+        new_current_states = np.array([transition[3] for transition in minibatch])
         future_qs_list = self.target_model.predict(new_current_states)
 
         X = []
@@ -125,7 +125,7 @@ class DQNAgent:
             y.append(current_qs)
 
         # Fit on all samples as one batch, log only on terminal state
-        self.model.fit(np.array(X) / 255, np.array(y), batch_size=MINIBATCH_SIZE, verbose=0, shuffle=False)
+        self.model.fit(np.array(X), np.array(y), batch_size=MINIBATCH_SIZE, verbose=0, shuffle=False)
 
         # Update target network counter every episode
         if terminal_state:
@@ -138,7 +138,7 @@ class DQNAgent:
 
     # Queries main network for Q values given current observation space (environment state)
     def get_qs(self, state):
-        return self.model.predict(np.array(state).reshape(-1, *state.shape))[0]
+        return self.model.predict(np.array(state).reshape(-1, len(state)))[0]
 
     def save_model(self, filename: str):
         self.model.save(filename)
@@ -150,7 +150,9 @@ class DQNAgent:
 
     def start(self):
         # Iterate over episodes
-        for episode in tqdm(range(1, 10000 + 1), ascii=True, unit='episodes'):
+        successes = 0
+        progress_bar = tqdm(range(self.episode_number+1, 10000 + 1), ascii=True, unit='episodes')
+        for episode in progress_bar:
             # Restarting episode - reset episode reward and step number
             episode_reward = 0
             step = 1
@@ -160,7 +162,13 @@ class DQNAgent:
 
             # Reset flag and start iterating until episode ends
             done = False
-            while not done and step < 20:
+            difficulty = 35
+            for elem in self.env.difficulties:
+                if episode < elem[1]:
+                    difficulty = elem[2]
+                    break
+            rewards_list = []
+            while not done and step < difficulty:
                 # This part stays mostly the same, the change is to query a model for Q values
                 if np.random.random() > self.epsilon:
                     # Get action from Q table
@@ -170,20 +178,24 @@ class DQNAgent:
                     action = np.random.randint(0, self.action_space_size)
 
                 new_state, reward, done, _ = self.env.step(action)
-
+                rewards_list.append(reward)
+                if reward == 10:
+                    successes += 1
+                progress_bar.set_description(f"Success {successes}, Success rate: {round(100*successes/episode, 2)}%, Epsilon: {round(self.epsilon, 2)}")
+                progress_bar.set_postfix_str(f"Rewards: {rewards_list}", refresh=True)
 
                 # Every step we update replay memory and train main network
                 self.update_replay_memory((current_state, action, reward, new_state, done))
-                self.train(done, step)
+                self.train(done)
+
 
                 current_state = new_state
                 step += 1
-
-
-
-
-
+            if episode % 25 == 0:
+                self.save_model(f"episode_{episode}.model")
             # Decay epsilon
             if self.epsilon > self.epsilon_min:
+                # if episode == difficulty[1]:
+                #     self.epsilon = 1
                 self.epsilon *= self.epsilon_decay
                 self.epsilon = max(self.epsilon_min, self.epsilon)
