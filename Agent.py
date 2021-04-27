@@ -50,7 +50,7 @@ class DQNAgent:
             self.episode_number = int(re.findall(r'\d+', latest_file)[0])
         except ValueError:
             self.episode_number=0
-        self.epsilon = self.epsilon_decay**self.episode_number if self.epsilon_decay**self.episode_number > self.epsilon_min else self.epsilon_min
+        self.epsilon = max(self.epsilon_decay**self.episode_number, self.epsilon_min)
         # This target model is used to control what actions the model should take
         # Target network
         # This double-model mode of function is required to improve convergence
