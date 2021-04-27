@@ -24,9 +24,10 @@ class SlidePuzzle(gym.Env):
         self.prev = None
 
         self.nb_move = 0
+        self.nb_games = 0
 
         self.training = training
-
+        self.difficulties = [(4, 800, 6), (6, 2000, 10), (10, 7500, 20), (20, 9000, 35)] # list of (nb_shuffles, episode_cap, nb_tries)
         # gym part
 
         # Reward is :
@@ -44,7 +45,7 @@ class SlidePuzzle(gym.Env):
 
         # Observation space:
         # We encode the board as an array of 9 values, ordered as on the board
-        self.observation_space = gym.spaces.Box(low=0, high=8, shape=(9,), dtype=np.int32)
+        self.observation_space = gym.spaces.Box(low=0, high=1, shape=(72,), dtype=np.int32)
 
     def getBlank(self):
         """
@@ -108,7 +109,7 @@ class SlidePuzzle(gym.Env):
         :return: Return positions of the tiles adjacent to the blank tile.
         """
         x, y = self.opentile
-        return (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)
+        return (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)  # left, right, up, down
 
     def random(self):
         """
@@ -157,7 +158,8 @@ class SlidePuzzle(gym.Env):
         """
 
         agent = DQNAgent(self)
-        agent.train()
+        self.nb_games = agent.episode_number
+        agent.start()
 
     def exit(self):
         """
@@ -181,6 +183,8 @@ class SlidePuzzle(gym.Env):
 
     def step(self, action):
         # action is the coordinates of the tiles we want to move
+        # pos_dict = {0:"Left", 1:"Right", 2:"Up", 3:"Down"}
+        # print(f"Blank pos: {self.tiles[8]}, Action: {pos_dict[action]} |", end = " ")
         moved_tile = self.adjacent()[action]
         if self.in_grid(moved_tile) and moved_tile != self.prev:
             self.switch(moved_tile)
@@ -189,31 +193,26 @@ class SlidePuzzle(gym.Env):
             reward = -50  # illegal move is punished
         obs = self.format_tiles()
         done = self.isWin()
-        print(reward)
+        print(reward, end=", ")
         return obs, reward, done, {"moves": self.nb_move}
 
-    def reset(self, episode):
+    def reset(self):
         """
         gym environment reset
         """
-        if episode < 30:
-            self.tiles = self.winCdt[:]
-            self.random()
-        elif episode < 100:
-            self.tiles = self.winCdt[:]
-            self.random()
-            self.random()
-            self.shuffle()
-        elif episode < 200:
-            self.tiles = self.winCdt[:]
-            self.random()
-            self.random()
-            self.random()
+        self.tiles = self.winCdt[:]
+        for difficulty, episode_cap, _ in self.difficulties:
+            if self.nb_games < episode_cap:
+                for shuffle in range(difficulty):
+                    self.random()
+                break
         else:
             self.shuffle()  # shuffle the board state
+
         self.nb_move = 0  # reset number of moves
         self.prev = None
-        return [self.tiles.index((j, i)) + 1 for i in range(3) for j in range(3)]  # return new board state
+        self.nb_games += 1
+        return self.format_tiles() # return new board state
 
     def render(self, mode='human'):
         """

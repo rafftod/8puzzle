@@ -8,7 +8,9 @@ from numpy.random import default_rng
 import gym
 import glob
 import re
-
+MIN_REPLAY_MEMORY_SIZE = 32  # Minimum number of steps in a memory to start training
+MINIBATCH_SIZE = 32  # How many steps (samples) to use for training
+UPDATE_TARGET_EVERY = 5  # Terminal states (end of episodes)
 class DQNAgent:
     """
     Class that represents the Q-Learning agent with neural network.
@@ -32,22 +34,24 @@ class DQNAgent:
         # Learning rate (r)
         self.learning_rate = learning_rate
         # Epsilon-greedy variable and its bounds
-        self.epsilon = 1.0
+        self.epsilon = 1
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
 
         # This model is used to predict actions to take
         self.model = self.create_model()
-
         list_of_files = glob.glob('./*.model')
         try:
             latest_file = max(list_of_files, key=os.path.getctime)
             self.load_model(latest_file)
-            self.file_number = int(re.findall(r'\d+', latest_file)[0])
+            self.episode_number = int(re.findall(r'\d+', latest_file)[0])
         except ValueError:
-            self.file_number=0
+            self.episode_number=0
         # This target model is used to control what actions the model should take
-        self.model_target = self.create_model()
+            # Target network
+        self.target_model = self.create_model()
+        self.target_model.set_weights(self.model.get_weights())
+        self.target_update_counter = 0
         # This double-model mode of function is required to improve convergence
         # as we are training while exploring and testing
 
@@ -61,114 +65,80 @@ class DQNAgent:
         model = tf.keras.models.Sequential()
         # model.add(tf.keras.Input(shape=(self.observation_space_size,)))
         # Input layer with input size of observation_space_size and output size of 24
-        model.add(tf.keras.layers.Dense(250, input_dim=self.observation_space_size, activation="relu"))
+        #model.add(tf.keras.layers.Dense(250, input_dim=self.observation_space_size, activation="relu"))
+        model.add(tf.keras.layers.Flatten(input_shape=(self.observation_space_size,)))
         # Hidden layers
-        #model.add(tf.keras.layers.Dense(24, activation="relu"))
-        model.add(tf.keras.layers.Dense(250, activation="relu"))
-        model.add(tf.keras.layers.Dense(250, activation="relu"))
+        #model.add(tf.keras.layers.Dense(16, activation="relu"))
+        model.add(tf.keras.layers.Dense(100, activation="relu"))
+        model.add(tf.keras.layers.Dense(50, activation="relu"))
+
         # Output layer that has action_space_size outputs
         model.add(tf.keras.layers.Dense(self.action_space_size, activation="linear"))
         model.compile(loss="mse", optimizer=tf.keras.optimizers.Adam(lr=self.learning_rate))
-
+        print(model.summary())
         return model
 
-    def remember(self, state, action, reward, new_state, done: bool) -> None:
-        """
-        Adds a state - action context to memory.
+    # Adds step's data to a memory replay array
+    # (observation space, action, reward, new observation space, done)
+    def update_replay_memory(self, transition):
+        self.memory.append(transition)
 
+    # Trains main network every step during episode
+    def train(self, terminal_state, step):
 
-        :param state: Initial state, before acting
-        :param action: Action taken
-        :param reward: Reward earned
-        :param new_state: New state reached
-        :param done: If game is finished or not
-        """
-        self.memory.append((state, action, reward, new_state, done))
-
-    def replay(self) -> None:
-        """
-        Trains the model following target model q-values.
-
-        """
-        # batch_size represents the number of samples we take from memory
-        batch_size = 32
-        if len(self.memory) < batch_size:
+        # Start training only if certain number of samples is already saved
+        if len(self.memory) < MIN_REPLAY_MEMORY_SIZE:
             return
-        samples = random.sample(self.memory, batch_size)
-        for sample in samples:
-            state, action, reward, new_state, done = sample
-            target = self.model_target.predict(state)
-            if done:
-                # reward is not discounted as it is the actual reward of the state
-                target[0][action] = reward
+
+        # Get a minibatch of random samples from memory replay table
+        minibatch = random.sample(self.memory, MINIBATCH_SIZE)
+
+        # Get current states from minibatch, then query NN model for Q values
+        current_states = np.array([transition[0] for transition in minibatch]) / 255
+        current_qs_list = self.model.predict(current_states)
+
+        # Get future states from minibatch, then query NN model for Q values
+        # When using target network, query it, otherwise main network should be queried
+        new_current_states = np.array([transition[3] for transition in minibatch]) / 255
+        future_qs_list = self.target_model.predict(new_current_states)
+
+        X = []
+        y = []
+
+        # Now we need to enumerate our batches
+        for index, (current_state, action, reward, new_current_state, done) in enumerate(minibatch):
+
+            # If not a terminal state, get new q from future states, otherwise set it to 0
+            # almost like with Q Learning, but we use just part of equation here
+            if not done:
+                max_future_q = np.max(future_qs_list[index])
+                new_q = reward + self.discount_rate * max_future_q
             else:
-                # the reward is the current reward + what we can get later (discounted)
-                q_future = max(self.model_target.predict(new_state)[0])
-                target[0][action] = reward + q_future * self.discount_rate
-            # finally train the model (NOT model_target) to fit that input-output combination
-            self.model.fit(state, target, epochs=1, verbose=0)
+                new_q = reward
 
-    def target_train(self) -> None:
-        """
-        Turns the target model into the trained model.
-        This update is called less frequently to improve stability.
-        """
-        weights = self.model.get_weights()
-        target_weights = weights[:]  # copy values
-        self.model_target.set_weights(target_weights)
+            # Update Q value for given state
+            current_qs = current_qs_list[index]
+            current_qs[action] = new_q
 
-    def get_action(self, state) -> int:
-        # slowly decrease epsilon
-        self.epsilon *= self.epsilon_decay
-        self.epsilon = max(self.epsilon_min, self.epsilon)
-        if np.random.random() < self.epsilon:
-            # take a random action
-            return self.env.action_space.sample()
-        # else, return what the model predicts
-        return int(np.argmax(self.model.predict(state)[0]))
+            # And append to our training data
+            X.append(current_state)
+            y.append(current_qs)
 
-    def train(self, episodes=10000) -> None:
-        """
-        Trains the model on episodes
-        :param episodes: number of games the agent will play
-        """
-        # eye candy progress bar
-        progress_bar = tqdm(range(self.file_number+1, episodes))
-        for episode in progress_bar:
-            # reset for each episode
-            state = self.env.reset(episode)
-            # reshape to feed the NN
-            state = np.reshape(state, [1, self.observation_space_size])
-            # run while game is not solved
-            done = False
-            moves = 0
-            while not done and moves < 50:
-                # decide what action to take
-                moves += 1
-                if moves % 10 == 0:
-                    print(f"moves: {moves}")
-                action = self.get_action(state)
-                # act
-                """print(f"moves: {moves}")
-                print(f"old state: {state}")
-                print(f"action: {action}")"""
-                new_state, reward, done, _ = self.env.step(action)
+        # Fit on all samples as one batch, log only on terminal state
+        self.model.fit(np.array(X) / 255, np.array(y), batch_size=MINIBATCH_SIZE, verbose=0, shuffle=False)
 
-                """print(f"new state: {new_state}")
-                print(f"reward: {reward}")"""
-                new_state = np.reshape(new_state, [1, self.observation_space_size])
-                # remember consequences of our acts
-                self.remember(state, action, reward, new_state, done)
-                # train the model
-                self.replay()
-                # update the target
-                self.target_train()
-                # go into new state
-                state = new_state
-            # update progress bar
-            progress_bar.set_description(f"Episode {episode} - Succeeded after {moves} moves")
-            #  print(f"Episode {episode} completed in {moves} moves.")
-            self.save_model(f"episode_{episode}.model")
+        # Update target network counter every episode
+        if terminal_state:
+            self.target_update_counter += 1
+
+        # If counter reaches set value, update target network with weights of main network
+        if self.target_update_counter > 5:
+            self.target_model.set_weights(self.model.get_weights())
+            self.target_update_counter = 0
+
+    # Queries main network for Q values given current observation space (environment state)
+    def get_qs(self, state):
+        return self.model.predict(np.array(state).reshape(-1, *state.shape))[0]
 
     def save_model(self, filename: str):
         self.model.save(filename)
@@ -176,4 +146,44 @@ class DQNAgent:
     def load_model(self, filename):
         print(f"loading models from: {filename}")
         self.model = tf.keras.models.load_model(filename)
-        self.model_target = tf.keras.models.load_model(filename)
+        self.target_model = tf.keras.models.load_model(filename)
+
+    def start(self):
+        # Iterate over episodes
+        for episode in tqdm(range(1, 10000 + 1), ascii=True, unit='episodes'):
+            # Restarting episode - reset episode reward and step number
+            episode_reward = 0
+            step = 1
+
+            # Reset environment and get initial state
+            current_state = self.env.reset()
+
+            # Reset flag and start iterating until episode ends
+            done = False
+            while not done and step < 20:
+                # This part stays mostly the same, the change is to query a model for Q values
+                if np.random.random() > self.epsilon:
+                    # Get action from Q table
+                    action = np.argmax(self.get_qs(current_state))
+                else:
+                    # Get random action
+                    action = np.random.randint(0, self.action_space_size)
+
+                new_state, reward, done, _ = self.env.step(action)
+
+
+                # Every step we update replay memory and train main network
+                self.update_replay_memory((current_state, action, reward, new_state, done))
+                self.train(done, step)
+
+                current_state = new_state
+                step += 1
+
+
+
+
+
+            # Decay epsilon
+            if self.epsilon > self.epsilon_min:
+                self.epsilon *= self.epsilon_decay
+                self.epsilon = max(self.epsilon_min, self.epsilon)
