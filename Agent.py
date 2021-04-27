@@ -33,7 +33,7 @@ class DQNAgent:
         # Learning rate (r)
         self.learning_rate = learning_rate
         # Epsilon-greedy variable and its bounds
-        self.epsilon = 1
+        self.epsilon = 0.05
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
 
@@ -50,8 +50,9 @@ class DQNAgent:
             self.episode_number = int(re.findall(r'\d+', latest_file)[0])
         except ValueError:
             self.episode_number=0
+        self.epsilon = self.epsilon_decay**self.episode_number if self.epsilon_decay**self.episode_number > self.epsilon_min else self.epsilon_min
         # This target model is used to control what actions the model should take
-            # Target network
+        # Target network
         # This double-model mode of function is required to improve convergence
         # as we are training while exploring and testing
 
@@ -181,7 +182,7 @@ class DQNAgent:
                 rewards_list.append(reward)
                 if reward == 10:
                     successes += 1
-                progress_bar.set_description(f"Success {successes}, Success rate: {round(100*successes/episode, 2)}%, Epsilon: {round(self.epsilon, 2)}")
+                progress_bar.set_description(f"Success {successes}, Success rate: {round(100*successes/episode, 2)}%, Epsilon: {round(self.epsilon, 2)}", refresh=True)
                 progress_bar.set_postfix_str(f"Rewards: {rewards_list}", refresh=True)
 
                 # Every step we update replay memory and train main network
