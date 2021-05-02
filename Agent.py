@@ -11,6 +11,8 @@ import re
 MIN_REPLAY_MEMORY_SIZE = 32  # Minimum number of steps in a memory to start training
 MINIBATCH_SIZE = 32  # How many steps (samples) to use for training
 UPDATE_TARGET_EVERY = 5  # Terminal states (end of episodes)
+
+
 class DQNAgent:
     """
     Class that represents the Q-Learning agent with neural network.
@@ -149,6 +151,19 @@ class DQNAgent:
         self.model = tf.keras.models.load_model(filename)
         self.target_model = tf.keras.models.load_model(filename)
 
+    def play(self, current_state):
+        """if np.random.random() > 0.1:
+            # Get action from Q table
+            action = np.argmax(self.get_qs(current_state))
+        else:
+            # Get random action
+            action = np.random.randint(0, self.action_space_size)"""
+        # action = np.argmax(self.get_qs(current_state))
+        action = np.random.randint(0, self.action_space_size)
+        print(action)
+        return action
+
+
     def start(self):
         # Iterate over episodes
         successes = 0
@@ -188,7 +203,6 @@ class DQNAgent:
                 # Every step we update replay memory and train main network
                 self.update_replay_memory((current_state, action, reward, new_state, done))
                 self.train(done)
-
 
                 current_state = new_state
                 step += 1
