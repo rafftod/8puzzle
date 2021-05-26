@@ -97,10 +97,8 @@ class SlidePuzzle(gym.Env):
 
         :return: Return True if the player win the game, otherwise False.
         """
-        win = False
-        if self.tiles == self.winCdt:
-            win = True
-        return win
+
+        return self.tiles == self.winCdt
 
     def sliding(self):
         """
@@ -364,7 +362,6 @@ class SlidePuzzle(gym.Env):
                         self.shuffle()
                         return "human"
                     if event.key == pygame.K_a:
-                        self.shuffle()
                         return "AI"
 
     def pauseMenu(self, fpsclock, screen):
@@ -454,14 +451,15 @@ class SlidePuzzle(gym.Env):
             # last_play = time.time()
             action = agent.play(current_state)
             new_state, reward, done, _ = self.step(action)
+
+            while reward == -50:
+                action = np.random.randint(0, 4)
+                new_state, reward, done, _ = self.step(action)
+
             current_state = new_state
             pygame.time.wait(500)
             self.update(dt)
             finished = self.checkGameState(fpsclock, screen)
-
-
-
-
 
 
 
@@ -511,7 +509,7 @@ class SlidePuzzle(gym.Env):
                 break
         else:
             self.shuffle()  # shuffle the board state"""
-        self.shuffle(difficulty=4)
+        self.shuffle(difficulty=8)
 
         self.nb_move = 0  # reset number of moves
         self.prev = None
