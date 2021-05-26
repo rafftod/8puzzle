@@ -16,7 +16,7 @@ class DQNAgent:
     Class that represents the Q-Learning agent with neural network.
 
     """
-    def __init__(self, env: gym.Env, discount_rate=0.9, learning_rate=0.001, max_memory=3000):
+    def __init__(self, env: gym.Env, discount_rate=0.9, learning_rate=0.001, max_memory=1500):
         # Store environment
         self.env = env
         # Store shapes for convenience
@@ -33,7 +33,7 @@ class DQNAgent:
         # Learning rate (r)
         self.learning_rate = learning_rate
         # Epsilon-greedy variable and its bounds
-        self.epsilon = 0.05
+        self.epsilon = 1
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
 
@@ -70,8 +70,8 @@ class DQNAgent:
         model.add(tf.keras.layers.Flatten(input_shape=(self.observation_space_size,)))
         # Hidden layers
         #model.add(tf.keras.layers.Dense(16, activation="relu"))
-        model.add(tf.keras.layers.Dense(100, activation="relu"))
-        model.add(tf.keras.layers.Dense(50, activation="relu"))
+        model.add(tf.keras.layers.Dense(200, activation="relu"))
+        model.add(tf.keras.layers.Dense(200, activation="relu"))
 
         # Output layer that has action_space_size outputs
         model.add(tf.keras.layers.Dense(self.action_space_size, activation="linear"))
@@ -182,7 +182,7 @@ class DQNAgent:
                 rewards_list.append(reward)
                 if reward == 10:
                     successes += 1
-                progress_bar.set_description(f"Success {successes}, Success rate: {round(100*successes/episode, 2)}%, Epsilon: {round(self.epsilon, 2)}", refresh=True)
+                progress_bar.set_description(f"Success {successes}, Success rate: {round(100*successes/(episode-5000), 2)}%, Epsilon: {round(self.epsilon, 2)}", refresh=True)
                 progress_bar.set_postfix_str(f"Rewards: {rewards_list}", refresh=True)
 
                 # Every step we update replay memory and train main network
