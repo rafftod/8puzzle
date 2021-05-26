@@ -152,14 +152,8 @@ class DQNAgent:
         self.target_model = tf.keras.models.load_model(filename)
 
     def play(self, current_state):
-        """if np.random.random() > 0.1:
-            # Get action from Q table
-            action = np.argmax(self.get_qs(current_state))
-        else:
-            # Get random action
-            action = np.random.randint(0, self.action_space_size)"""
-        # action = np.argmax(self.get_qs(current_state))
-        action = np.random.randint(0, self.action_space_size)
+
+        action = np.argmax(self.get_qs(current_state))
         print(action)
         return action
 

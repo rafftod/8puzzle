@@ -420,7 +420,7 @@ class SlidePuzzle(gym.Env):
                     self.exit()
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_y:
-                        self.shuffle()
+                        self.reset()
                         self.nb_move = 0
                         return False
                     if event.key == pygame.K_n:
@@ -438,7 +438,8 @@ class SlidePuzzle(gym.Env):
         finished = False
         agent = DQNAgent(self)
         last_play = time.time()
-
+        self.reset()
+        print(self.tiles)
         current_state = self.format_tiles()
 
         while not finished and self.nb_move < 30:
@@ -503,12 +504,13 @@ class SlidePuzzle(gym.Env):
         gym environment reset
         """
         self.tiles = self.winCdt[:]
-        for difficulty, episode_cap, _ in self.difficulties:
+        """for difficulty, episode_cap, _ in self.difficulties:
             if self.nb_games < episode_cap:
                 self.shuffle(difficulty)
                 break
         else:
-            self.shuffle()  # shuffle the board state
+            self.shuffle()  # shuffle the board state"""
+        self.shuffle(difficulty=4)
 
         self.nb_move = 0  # reset number of moves
         self.prev = None
