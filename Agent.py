@@ -1,3 +1,7 @@
+"""
+The code for the agent is based on the following tutorial:
+https://pythonprogramming.net/training-deep-q-learning-dqn-reinforcement-learning-python-tutorial/
+"""
 import os
 import random
 from collections import deque
