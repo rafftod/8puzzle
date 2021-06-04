@@ -97,10 +97,8 @@ class SlidePuzzle(gym.Env):
 
         :return: Return True if the player win the game, otherwise False.
         """
-        win = False
-        if self.tiles == self.winCdt:
-            win = True
-        return win
+
+        return self.tiles == self.winCdt
 
     def sliding(self):
         """
@@ -332,6 +330,7 @@ class SlidePuzzle(gym.Env):
         """
         Check if the game is won. If it is won, we ask to the player if he want
         the play again, quit the game or want to go to the main menu.
+
         :param fpsclock: Track time.
         :param screen:   The screen.
         :return:         Return False if the game is won or if the player want
@@ -363,7 +362,6 @@ class SlidePuzzle(gym.Env):
                         self.shuffle()
                         return "human"
                     if event.key == pygame.K_a:
-                        self.shuffle()
                         return "AI"
 
     def pauseMenu(self, fpsclock, screen):
@@ -436,30 +434,32 @@ class SlidePuzzle(gym.Env):
         :param screen:   The screen.
         """
         finished = False
+        wantToQuitGame = False
         agent = DQNAgent(self)
         last_play = time.time()
         self.reset()
         print(self.tiles)
         current_state = self.format_tiles()
-
-        while not finished and self.nb_move < 30:
+        while not finished and self.nb_move < 30 and not wantToQuitGame:
             dt = fpsclock.tick(FPS)
             screen.fill((0, 0, 0))
             self.draw(screen)
             self.drawShortcuts(screen, True)
             pygame.display.flip()
+            wantToQuitGame = self.catchGameEvents(False, fpsclock, screen)
 
-            if time.time() - last_play > 1:
-                last_play = time.time()
-                action = agent.play(current_state)
+            # last_play = time.time()
+            action = agent.play(current_state)
+            new_state, reward, done, _ = self.step(action)
+
+            while reward == -50:
+                action = np.random.randint(0, 4)
                 new_state, reward, done, _ = self.step(action)
-                current_state = new_state
 
+            current_state = new_state
+            pygame.time.wait(500)
             self.update(dt)
             finished = self.checkGameState(fpsclock, screen)
-
-
-
 
 
 
@@ -494,7 +494,6 @@ class SlidePuzzle(gym.Env):
         else:
             reward = -50  # illegal move is punished
         print(reward)
-        self.nb_move += 1
         obs = self.format_tiles()
         done = self.isWin()
         return obs, reward, done, {"moves": self.nb_move}
@@ -510,7 +509,7 @@ class SlidePuzzle(gym.Env):
                 break
         else:
             self.shuffle()  # shuffle the board state"""
-        self.shuffle(difficulty=4)
+        self.shuffle(difficulty=8)
 
         self.nb_move = 0  # reset number of moves
         self.prev = None
