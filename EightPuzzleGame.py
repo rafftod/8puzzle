@@ -1,3 +1,8 @@
+"""
+Most of the code pertaining to the graphical interface comes from Brice PETIT,
+Dumitru NEGRU, and Maxence HUWART
+"""
+
 import os
 import random
 import sys
