@@ -58,6 +58,7 @@ class SlidePuzzle(gym.Env):
 
         self.training = training
         self.difficulties = [(8, 15000, 14)] # list of (nb_shuffles, episode_cap, nb_tries)
+        self.testing_difficulty = 10
         # gym part
 
         # Reward is :
@@ -341,7 +342,7 @@ class SlidePuzzle(gym.Env):
         :return:         Return False if the game is won or if the player want
                          to play again. Otherwise, False.
         """
-        if self.isWin():
+        if self.isWin() or self.nb_move > self.testing_difficulty*1.5:
             if self.exitMenu(fpsclock, screen):
                 return True
         return False
@@ -364,7 +365,7 @@ class SlidePuzzle(gym.Env):
                     self.exit()
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_h:
-                        self.shuffle()
+                        self.reset()
                         return "human"
                     if event.key == pygame.K_a:
                         return "AI"
@@ -399,7 +400,7 @@ class SlidePuzzle(gym.Env):
         The menu to exit, restart the game or go to the main menu.
         :param fpsclock: Track time.
         :param screen:   The screen.
-        :return:         Return True if the player want to go to the main menu.
+        :return:         Return True if the player wants to go to the main menu.
                          Otherwise, False.
         """
         screen.fill((0, 0, 0))
@@ -407,8 +408,12 @@ class SlidePuzzle(gym.Env):
                                 self.gs[1] * (self.ts + self.ms) + self.ms)
         self.pic = pygame.transform.smoothscale(pygame.image.load('bluredImage.png'), self.rect.size)
         screen.blit(self.pic, self.rect)
-        self.draw_text(screen, "You won!", 50, 250, 80, 0, 0, 0, True)
-        self.draw_text(screen, "Congratulations !", 50, 250, 160, 0, 0, 0, True)
+        if self.isWin():
+            self.draw_text(screen, "You won !", 50, 250, 80, 0, 0, 0, True)
+            self.draw_text(screen, "Congratulations !", 50, 250, 160, 0, 0, 0, True)
+        else:
+            self.draw_text(screen, "You lost !", 50, 250, 80, 0, 0, 0, True)
+            self.draw_text(screen, "Better luck next time !", 50, 250, 160, 0, 0, 0, True)
         self.draw_text(screen, "Moves : " + str(self.nb_move), 40, 500, 10, 255, 255, 255, False)
         self.draw_text(screen, "Shortcuts", 40, 500, 40, 255, 255, 255, False)
         self.draw_text(screen, "Restart : y", 40, 500, 70, 255, 255, 255, False)
@@ -445,7 +450,7 @@ class SlidePuzzle(gym.Env):
         self.reset()
         print(self.tiles)
         current_state = self.format_tiles()
-        while not finished and self.nb_move < 30 and not wantToQuitGame:
+        while not finished and not wantToQuitGame:
             dt = fpsclock.tick(FPS)
             screen.fill((0, 0, 0))
             self.draw(screen)
@@ -456,10 +461,9 @@ class SlidePuzzle(gym.Env):
             # last_play = time.time()
             action = agent.play(current_state)
             new_state, reward, done, _ = self.step(action)
-
-            while reward == -50:
-                action = np.random.randint(0, 4)
-                new_state, reward, done, _ = self.step(action)
+            if reward == -50:
+                self.random()
+                new_state = self.format_tiles()
 
             current_state = new_state
             pygame.time.wait(500)
@@ -514,7 +518,7 @@ class SlidePuzzle(gym.Env):
                 break
         else:
             self.shuffle()  # shuffle the board state"""
-        self.shuffle(difficulty=8)
+        self.shuffle(difficulty=self.testing_difficulty)
 
         self.nb_move = 0  # reset number of moves
         self.prev = None
