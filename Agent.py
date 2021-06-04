@@ -14,7 +14,6 @@ import glob
 import re
 MIN_REPLAY_MEMORY_SIZE = 32  # Minimum number of steps in a memory to start training
 MINIBATCH_SIZE = 32  # How many steps (samples) to use for training
-UPDATE_TARGET_EVERY = 5  # Terminal states (end of episodes)
 
 
 class DQNAgent:
@@ -22,7 +21,7 @@ class DQNAgent:
     Class that represents the Q-Learning agent with neural network.
 
     """
-    def __init__(self, env: gym.Env, discount_rate=0.9, learning_rate=0.001, max_memory=1500):
+    def __init__(self, env: gym.Env, discount_rate=0.9, max_memory=1500):
         # Store environment
         self.env = env
         # Store shapes for convenience
@@ -31,13 +30,10 @@ class DQNAgent:
         # This memory allows to randomly sample from previous tries
         # and avoid being biased by using only latest samples
         self.memory = deque(maxlen=max_memory)
-        # We will minimize the MSE in the model,
-        # which means minimizing
-        # (r + gamma * argmax_a'(Q_hat(s, a') - Q(s,a))²
+
         # Discount rate (gamma), future reward depreciation factor
         self.discount_rate = discount_rate
-        # Learning rate (r)
-        self.learning_rate = learning_rate
+
         # Epsilon-greedy variable and its bounds
         self.epsilon = 1
         self.epsilon_min = 0.01
@@ -50,6 +46,8 @@ class DQNAgent:
         self.target_model = self.create_model()
         self.target_model.set_weights(self.model.get_weights())
         self.target_update_counter = 0
+        # This double-model mode of function is required to improve convergence
+        # as we are training while exploring and testing
 
         list_of_files = glob.glob('./*.model')
         try:
@@ -57,12 +55,12 @@ class DQNAgent:
             self.load_model(latest_file)
             self.episode_number = int(re.findall(r'\d+', latest_file)[0])
         except ValueError:
-            self.episode_number=0
+            self.episode_number = 0
+
+        # Set epsilon to be able to restart training from where it left off
         self.epsilon = max(self.epsilon_decay**self.episode_number, self.epsilon_min)
 
-        # Target network
-        # This double-model mode of function is required to improve convergence
-        # as we are training while exploring and testing
+
 
     def create_model(self) -> tf.keras.models.Sequential:
         """
@@ -106,7 +104,7 @@ class DQNAgent:
         current_qs_list = self.model.predict(current_states)
 
         # Get future states from minibatch, then query NN model for Q values
-        # When using target network, query it, otherwise main network should be queried
+        # Here we are using the target_model
         new_current_states = np.array([transition[3] for transition in minibatch])
         future_qs_list = self.target_model.predict(new_current_states)
 
@@ -116,8 +114,7 @@ class DQNAgent:
         # Now we need to enumerate our batches
         for index, (current_state, action, reward, new_current_state, done) in enumerate(minibatch):
 
-            # If not a terminal state, get new q from future states, otherwise set it to 0
-            # almost like with Q Learning, but we use just part of equation here
+            # If not a terminal state, get new q from future q and reward, otherwise only from reward
             if not done:
                 max_future_q = np.max(future_qs_list[index])
                 new_q = reward + self.discount_rate * max_future_q
@@ -128,18 +125,19 @@ class DQNAgent:
             current_qs = current_qs_list[index]
             current_qs[action] = new_q
 
-            # And append to our training data
+            # Training data (X = input, y = output)
             X.append(current_state)
             y.append(current_qs)
 
-        # Fit on all samples as one batch, log only on terminal state
+        # Fit on all samples as one batch
         self.model.fit(np.array(X), np.array(y), batch_size=MINIBATCH_SIZE, verbose=0, shuffle=False)
 
         # Update target network counter every episode
         if terminal_state:
             self.target_update_counter += 1
 
-        # If counter reaches set value, update target network with weights of main network
+        # If counter reaches 5, update target network with weights of main network
+        # -> the predictions for the same inputs for the future qs should only change every 5 episodes
         if self.target_update_counter > 5:
             self.target_model.set_weights(self.model.get_weights())
             self.target_update_counter = 0
@@ -157,7 +155,6 @@ class DQNAgent:
         self.target_model = tf.keras.models.load_model(filename)
 
     def play(self, current_state):
-
         action = np.argmax(self.get_qs(current_state))
         print(action)
         return action
@@ -165,26 +162,29 @@ class DQNAgent:
 
     def start(self):
         # Iterate over episodes
-        successes = 0
-        progress_bar = tqdm(range(self.episode_number+1, 10000 + 1), ascii=True, unit='episodes')
+        successes = 0 # keep track of successes
+        progress_bar = tqdm(range(self.episode_number+1, 20000 + 1), ascii=True, unit='episodes')
         for episode in progress_bar:
-            # Restarting episode - reset episode reward and step number
-            episode_reward = 0
             step = 1
 
             # Reset environment and get initial state
             current_state = self.env.reset()
 
-            # Reset flag and start iterating until episode ends
+            # Reset done flag and start iterating until episode ends
             done = False
-            difficulty = 35
+            difficulty = 10 # base difficulty
+
+            # Iterate over enivronment difficulties list (training difficulty increases as episode number grows)
             for elem in self.env.difficulties:
+                if episode == elem[1]:
+                    self.epsilon = 1 # reset epsilon when changing difficulty
                 if episode < elem[1]:
                     difficulty = elem[2]
                     break
+
             rewards_list = []
             while not done and step < difficulty:
-                # This part stays mostly the same, the change is to query a model for Q values
+                # Epsilon-greedy strategy
                 if np.random.random() > self.epsilon:
                     # Get action from Q table
                     action = np.argmax(self.get_qs(current_state))
@@ -194,8 +194,12 @@ class DQNAgent:
 
                 new_state, reward, done, _ = self.env.step(action)
                 rewards_list.append(reward)
+
+                # Keep track of successes
                 if reward == 10:
                     successes += 1
+
+                # Update progress bar
                 progress_bar.set_description(f"Success {successes}, Success rate: {round(100*successes/(episode-5000), 2)}%, Epsilon: {round(self.epsilon, 2)}", refresh=True)
                 progress_bar.set_postfix_str(f"Rewards: {rewards_list}", refresh=True)
 
@@ -203,13 +207,14 @@ class DQNAgent:
                 self.update_replay_memory((current_state, action, reward, new_state, done))
                 self.train(done)
 
+                # Update state
                 current_state = new_state
                 step += 1
+
+            # Save model every 25 episodes
             if episode % 25 == 0:
                 self.save_model(f"episode_{episode}.model")
+
             # Decay epsilon
-            if self.epsilon > self.epsilon_min:
-                # if episode == difficulty[1]:
-                #     self.epsilon = 1
-                self.epsilon *= self.epsilon_decay
-                self.epsilon = max(self.epsilon_min, self.epsilon)
+            self.epsilon *= self.epsilon_decay
+            self.epsilon = max(self.epsilon_min, self.epsilon)
