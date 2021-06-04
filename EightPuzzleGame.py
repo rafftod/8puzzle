@@ -27,7 +27,7 @@ class SlidePuzzle(gym.Env):
         self.nb_games = 0
 
         self.training = training
-        self.difficulties = [(8, 15000, 14)] # list of (nb_shuffles, episode_cap, nb_tries)
+        self.difficulties = [(8, 9300, 14), (10, 20000, 18)] # list of (nb_shuffles, episode_cap, nb_tries)
         # gym part
 
         # Reward is :
@@ -163,7 +163,9 @@ class SlidePuzzle(gym.Env):
 
         agent = DQNAgent(self)
         self.nb_games = agent.episode_number
-        agent.start()
+        #agent.start()
+        for i in range (8, 11):
+            agent.do_predictions(500, i)
 
     def exit(self):
         """
@@ -199,6 +201,21 @@ class SlidePuzzle(gym.Env):
         done = self.isWin()
         return obs, reward, done, {"moves": self.nb_move}
 
+    def step_predict(self, action):
+        # action is the coordinates of the tiles we want to move
+        # pos_dict = {0:"Left", 1:"Right", 2:"Up", 3:"Down"}
+        # print(f"Blank pos: {self.tiles[8]}, Action: {pos_dict[action]} |", end = " ")
+        moved_tile = self.adjacent()[action]
+        if self.in_grid(moved_tile) and moved_tile != self.prev:
+            self.switch(moved_tile)
+            reward = 10 if self.isWin() else -self.manhattan_distance()
+        else:
+            self.random()
+            reward = -50  # illegal move is punished
+        obs = self.format_tiles()
+        done = self.isWin()
+        return obs, reward, done, {"moves": self.nb_move}
+
     def reset(self):
         """
         gym environment reset
@@ -214,6 +231,18 @@ class SlidePuzzle(gym.Env):
         self.nb_move = 0  # reset number of moves
         self.prev = None
         self.nb_games += 1
+        return self.format_tiles() # return new board state
+
+
+    def reset_predict(self, difficulty):
+        """
+        gym environment reset
+        """
+        self.tiles = self.winCdt[:]
+        self.shuffle(difficulty)
+
+        self.nb_move = 0  # reset number of moves
+        self.prev = None
         return self.format_tiles() # return new board state
 
     def render(self, mode='human'):

@@ -49,8 +49,9 @@ class DQNAgent:
             self.load_model(latest_file)
             self.episode_number = int(re.findall(r'\d+', latest_file)[0])
         except ValueError:
-            self.episode_number=0
+            self.episode_number = 0
         self.epsilon = max(self.epsilon_decay**self.episode_number, self.epsilon_min)
+        # self.epsilon = 0.25
         # This target model is used to control what actions the model should take
         # Target network
         # This double-model mode of function is required to improve convergence
@@ -152,7 +153,7 @@ class DQNAgent:
     def start(self):
         # Iterate over episodes
         successes = 0
-        progress_bar = tqdm(range(self.episode_number+1, 10000 + 1), ascii=True, unit='episodes')
+        progress_bar = tqdm(range(self.episode_number+1, 20000 + 1), ascii=True, unit='episodes')
         for episode in progress_bar:
             # Restarting episode - reset episode reward and step number
             episode_reward = 0
@@ -165,9 +166,12 @@ class DQNAgent:
             done = False
             difficulty = 35
             for elem in self.env.difficulties:
+                if episode == elem[1]:
+                    self.epsilon = 1
                 if episode < elem[1]:
                     difficulty = elem[2]
                     break
+
             rewards_list = []
             while not done and step < difficulty:
                 # This part stays mostly the same, the change is to query a model for Q values
@@ -182,7 +186,7 @@ class DQNAgent:
                 rewards_list.append(reward)
                 if reward == 10:
                     successes += 1
-                progress_bar.set_description(f"Success {successes}, Success rate: {round(100*successes/(episode-5000), 2)}%, Epsilon: {round(self.epsilon, 2)}", refresh=True)
+                progress_bar.set_description(f"Success {successes}, Success rate: {round(100*successes/(episode-self.episode_number), 2)}%, Epsilon: {round(self.epsilon, 2)}", refresh=True)
                 progress_bar.set_postfix_str(f"Rewards: {rewards_list}", refresh=True)
 
                 # Every step we update replay memory and train main network
@@ -200,3 +204,35 @@ class DQNAgent:
                 #     self.epsilon = 1
                 self.epsilon *= self.epsilon_decay
                 self.epsilon = max(self.epsilon_min, self.epsilon)
+
+
+    def do_predictions(self, games, difficulty):
+        # Iterate over episodes
+        successes = 0
+        progress_bar = tqdm(range(1, games + 1), ascii=True, unit='episodes')
+        for episode in progress_bar:
+            # Restarting episode - reset episode reward and step number
+            episode_reward = 0
+            step = 1
+
+            # Reset environment and get initial state
+            current_state = self.env.reset_predict(difficulty)
+
+            # Reset flag and start iterating until episode ends
+            done = False
+            rewards_list = []
+            while not done and step < difficulty*1.5:
+
+                # Get action from Q table
+                action = np.argmax(self.get_qs(current_state))
+
+                new_state, reward, done, _ = self.env.step_predict(action)
+                rewards_list.append(reward)
+                if reward == 10:
+                    successes += 1
+
+                progress_bar.set_description(f"Success {successes}, Success rate: {round(100*successes/(episode), 2)}%, Epsilon: {round(self.epsilon, 2)}", refresh=True)
+                progress_bar.set_postfix_str(f"Rewards: {rewards_list}", refresh=True)
+
+                current_state = new_state
+                step += 1
