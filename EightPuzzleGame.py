@@ -471,6 +471,9 @@ class SlidePuzzle(gym.Env):
             finished = self.checkGameState(fpsclock, screen)
 
     def trainAI(self):
+        agent = DQNAgent(self)
+        self.nb_games = agent.episode_number
+        agent.start()
 
     def exit(self):
         """
@@ -512,13 +515,15 @@ class SlidePuzzle(gym.Env):
         gym environment reset
         """
         self.tiles = self.winCdt[:]
-        """for difficulty, episode_cap, _ in self.difficulties:
-            if self.nb_games < episode_cap:
-                self.shuffle(difficulty)
-                break
+        if self.training:
+            for difficulty, episode_cap, _ in self.difficulties:
+                if self.nb_games < episode_cap:
+                    self.shuffle(difficulty)
+                    break
+            else:
+                self.shuffle()  # shuffle the board state
         else:
-            self.shuffle()  # shuffle the board state"""
-        self.shuffle(difficulty=self.testing_difficulty)
+            self.shuffle(difficulty=self.testing_difficulty)
 
         self.nb_move = 0  # reset number of moves
         self.prev = None
@@ -548,7 +553,7 @@ def main():
     screen = pygame.display.set_mode((800, 500))
     fpsclock = pygame.time.Clock()
     while True:
-        program = SlidePuzzle((3, 3), 160, 5, training=True)  # program is also the gym environment
+        program = SlidePuzzle((3, 3), 160, 5, training=False)  # program is also the gym environment
         choice = program.selectPlayerMenu(fpsclock, screen)
         if choice == "AI":
             # Demander si le joueur veut jouer sur un modèle entrainé ou pas.
