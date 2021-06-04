@@ -127,8 +127,9 @@ class SlidePuzzle(gym.Env):
         """
         # Since we can keep moving tiles while others are sliding, we should stop that from happening.
         # We attempt this using the sliding function.
-        if self.sliding() and not self.training:
-            return
+        # if self.sliding() and not self.training:
+        #     print("Returning")
+        #     return
         self.tiles[self.tiles.index(tile)], self.opentile, self.prev = self.opentile, tile, self.opentile
         self.nb_move += 1
 
