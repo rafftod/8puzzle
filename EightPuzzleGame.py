@@ -57,7 +57,7 @@ class SlidePuzzle(gym.Env):
             self.images += [image]
 
         self.training = training
-        self.difficulties = [(8, 15000, 14)] # list of (nb_shuffles, episode_cap, nb_tries)
+        self.difficulties = [(2, 500, 3), (4, 1500, 6), (6, 4000, 9), (8, 10000, 12), (10, 20000, 15)] # list of (nb_shuffles, episode_cap, nb_tries)
         self.testing_difficulty = 10
         # gym part
 
