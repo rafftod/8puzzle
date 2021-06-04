@@ -470,7 +470,7 @@ class SlidePuzzle(gym.Env):
             self.update(dt)
             finished = self.checkGameState(fpsclock, screen)
 
-
+    def trainAI(self):
 
     def exit(self):
         """
