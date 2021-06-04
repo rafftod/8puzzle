@@ -45,6 +45,8 @@ class DQNAgent:
 
         # This model is used to predict actions to take
         self.model = self.create_model()
+
+        # This target model is used to control what actions the model should take and is updated every few episodes
         self.target_model = self.create_model()
         self.target_model.set_weights(self.model.get_weights())
         self.target_update_counter = 0
@@ -57,7 +59,7 @@ class DQNAgent:
         except ValueError:
             self.episode_number=0
         self.epsilon = max(self.epsilon_decay**self.episode_number, self.epsilon_min)
-        # This target model is used to control what actions the model should take
+
         # Target network
         # This double-model mode of function is required to improve convergence
         # as we are training while exploring and testing
@@ -70,19 +72,18 @@ class DQNAgent:
         """
         tf.compat.v1.enable_eager_execution()  # to allow numpy() function
         model = tf.keras.models.Sequential()
-        # model.add(tf.keras.Input(shape=(self.observation_space_size,)))
-        # Input layer with input size of observation_space_size and output size of 24
-        #model.add(tf.keras.layers.Dense(250, input_dim=self.observation_space_size, activation="relu"))
+        # Input layer
         model.add(tf.keras.layers.Flatten(input_shape=(self.observation_space_size,)))
+
         # Hidden layers
-        #model.add(tf.keras.layers.Dense(16, activation="relu"))
         model.add(tf.keras.layers.Dense(200, activation="relu"))
         model.add(tf.keras.layers.Dense(200, activation="relu"))
 
         # Output layer that has action_space_size outputs
         model.add(tf.keras.layers.Dense(self.action_space_size, activation="linear"))
+
         model.compile(loss="mse", optimizer=tf.keras.optimizers.Adam(lr=self.learning_rate))
-        print(model.summary())
+        print(model.summary()) # Make sure everything works
         return model
 
     # Adds step's data to a memory replay array
