@@ -21,7 +21,7 @@ class DQNAgent:
     Class that represents the Q-Learning agent with neural network.
 
     """
-    def __init__(self, env: gym.Env, discount_rate=0.9, max_memory=1500):
+    def __init__(self, env: gym.Env, learning_rate = 0.001, discount_rate=0.9, max_memory=1500):
         # Store environment
         self.env = env
         # Store shapes for convenience
@@ -33,6 +33,8 @@ class DQNAgent:
 
         # Discount rate (gamma), future reward depreciation factor
         self.discount_rate = discount_rate
+
+        self.learning_rate = learning_rate
 
         # Epsilon-greedy variable and its bounds
         self.epsilon = 1
