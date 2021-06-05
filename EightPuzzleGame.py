@@ -16,6 +16,7 @@ from Agent import DQNAgent
 
 FPS = 60
 
+
 class SlidePuzzle(gym.Env):
     def __init__(self, gs, ts, ms, training=False):
         """
@@ -56,8 +57,10 @@ class SlidePuzzle(gym.Env):
             self.images += [image]
 
         self.training = training
-        self.difficulties = [(2, 500, 3), (4, 1500, 6), (6, 4000, 9), (8, 10000, 12), (10, 20000, 15)] # list of (nb_shuffles, episode_cap, nb_tries)
+        self.difficulties = [(2, 500, 3), (4, 1500, 6), (6, 4000, 9), (8, 10000, 12),
+                             (10, 20000, 15)]  # list of (nb_shuffles, episode_cap, nb_tries)
         self.testing_difficulty = 4
+        self.max_tries = round(self.testing_difficulty*1.5)
         # gym part
 
         # Reward is :
@@ -108,6 +111,9 @@ class SlidePuzzle(gym.Env):
 
         return self.tiles == self.winCdt
 
+    def isLost(self):
+        return self.nb_move >= self.max_tries
+
     def sliding(self):
         """
         Check if there are tiles that are sliding.
@@ -127,10 +133,6 @@ class SlidePuzzle(gym.Env):
 
         :return:     Break the switch function if a tile is sliding.
         """
-        # Since we can keep moving tiles while others are sliding, we should stop that from happening.
-        # We attempt this using the sliding function.
-        if self.sliding() and not self.training:
-            return
         self.tiles[self.tiles.index(tile)], self.opentile, self.prev = self.opentile, tile, self.opentile
         self.nb_move += 1
 
@@ -327,6 +329,7 @@ class SlidePuzzle(gym.Env):
         """
         wantToQuitGame = False
         finished = False
+        self.reset()
         while not finished and not wantToQuitGame:
             dt = fpsclock.tick(FPS)
             screen.fill((0, 0, 0))
@@ -347,33 +350,10 @@ class SlidePuzzle(gym.Env):
         :return:         Return False if the game is won or if the player want
                          to play again. Otherwise, False.
         """
-        if self.isWin() or self.nb_move > self.testing_difficulty*1.5:
+        if self.isWin() or self.isLost():
             if self.exitMenu(fpsclock, screen):
                 return True
         return False
-
-    def selectPlayerMenu(self, fpsclock, screen):
-        """
-        Ask to the player if he wants to play or if he wants an AI to play.
-        :param fpsclock: Track time.
-        :param screen:   The screen.
-        :return:         Return the choice of the player.
-        """
-        screen.fill((0, 0, 0))
-        self.draw_text(screen, "Press h to play", 40, 400, 150, 255, 255, 255, True)
-        self.draw_text(screen, "Press a to run the AI", 40, 400, 300, 255, 255, 255, True)
-        pygame.display.flip()
-        while True:
-            dt = fpsclock.tick(FPS)
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.exit()
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_h:
-                        self.reset()
-                        return "human"
-                    if event.key == pygame.K_a:
-                        return "AI"
 
     def pauseMenu(self, fpsclock, screen):
         """
@@ -440,42 +420,6 @@ class SlidePuzzle(gym.Env):
                     if event.key == pygame.K_m:
                         return True
 
-
-    def playAIGame(self, fpsclock, screen):
-        """
-        Play the game with AI.
-        :param fpsclock: Track time.
-        :param screen:   The screen.
-        """
-        finished = False
-        wantToQuitGame = False
-        agent = DQNAgent(self)
-        last_play = time.time()
-        self.reset()
-        print(self.tiles)
-        while not finished and not wantToQuitGame:
-            current_state = self.format_tiles()
-            dt = fpsclock.tick(FPS)
-            screen.fill((0, 0, 0))
-            self.draw(screen)
-            self.drawShortcuts(screen, True)
-            pygame.display.flip()
-            wantToQuitGame = self.catchGameEvents(False, fpsclock, screen)
-
-            # last_play = time.time()
-            action = agent.play(current_state)
-            new_state, reward, done, _ = self.step(action)
-            if reward == -50:
-                self.random()
-                new_state = self.format_tiles()
-
-            current_state = new_state
-            pygame.time.wait(500)
-            self.update(dt)
-            finished = self.checkGameState(fpsclock, screen)
-
-
-
     def exit(self):
         """
         Exit the application.
@@ -487,12 +431,12 @@ class SlidePuzzle(gym.Env):
     """
 
     def format_tiles(self):
-        formatted_tiles = [0]*72
+        formatted_tiles = [0] * 72
         for i in range(3):
             for j in range(3):
                 pos = self.tiles.index((j, i))
                 if pos != 8:
-                    formatted_tiles[pos*9 + i*3 + j] = 1
+                    formatted_tiles[pos * 9 + i * 3 + j] = 1
 
         return formatted_tiles
 
@@ -506,7 +450,6 @@ class SlidePuzzle(gym.Env):
             reward = 10 if self.isWin() else -self.manhattan_distance()
         else:
             reward = -50  # illegal move is punished
-        print(reward)
         obs = self.format_tiles()
         done = self.isWin()
         return obs, reward, done, {"moves": self.nb_move}
@@ -527,7 +470,7 @@ class SlidePuzzle(gym.Env):
         self.nb_move = 0  # reset number of moves
         self.prev = None
         self.nb_games += 1
-        return self.format_tiles() # return new board state
+        return self.format_tiles()  # return new board state
 
     def render(self, mode='human'):
         """
@@ -539,39 +482,34 @@ class SlidePuzzle(gym.Env):
     def manhattan_distance(self):
         dist = 0
         for target, tile in zip(self.winCdt[:-1], self.tiles[:-1]):
-            dist += abs(target[0]-tile[0]) + abs(target[1]-tile[1])
+            dist += abs(target[0] - tile[0]) + abs(target[1] - tile[1])
         return dist
+
+def launchWithGUI():
+    os.environ['SDL_VIDEO_CENTERED'] = '1'
+    pygame.display.set_caption('8-Puzzle game')
+    screen = pygame.display.set_mode((800, 500))
+    fpsclock = pygame.time.Clock()
+    while True:
+        program = SlidePuzzle((3, 3), 160, 5, training=False)  # program is also the gym environment
+        program.playGame(fpsclock, screen)
+        del program
+
+def trainAI():
+    program = SlidePuzzle((3, 3), 160, 5, training=True)  # program is also the gym environment
+    program.nb_games = program.agent.episode_number
+    program.agent.start()
 
 def main():
     """
     The main function to run the game.
     """
     pygame.init()
-    os.environ['SDL_VIDEO_CENTERED'] = '1'
-    pygame.display.set_caption('8-Puzzle game')
-    screen = pygame.display.set_mode((800, 500))
-    fpsclock = pygame.time.Clock()
-    while True:
-        program = SlidePuzzle((3, 3), 160, 5, training=True)  # program is also the gym environment
-        choice = program.selectPlayerMenu(fpsclock, screen)
-        if choice == "AI":
-            # Demander si le joueur veut jouer sur un modèle entrainé ou pas.
-            # Si non, créer un nouveau fichier
-            # Si oui, choisir un choisir un fichier.
-            # Demander s'il faut  générer aléatoirement un board ou définir lui même un board
-            # Fin de partie, est ce que l'ia rejoue ou pas ?
-            # Si oui, Demander s'il faut  générer aléatoirement un board ou définir lui même un board
-            # Si non, retour au menu principal
-            program.playAIGame(fpsclock, screen)
-        else:
-            program.playGame(fpsclock, screen)
-        del program
+    #launchWithGUI()
+    #trainAI()
 
-    # program = SlidePuzzle((3, 3), training=True)  # program is also the gym environment
 
-    # program.playAIGame()
 
-    # del program
 
 
 if __name__ == '__main__':
