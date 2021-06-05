@@ -158,7 +158,6 @@ class DQNAgent:
 
     def play(self, current_state):
         action = np.argmax(self.get_qs(current_state))
-        print(action)
         return action
 
 
@@ -202,7 +201,7 @@ class DQNAgent:
                     successes += 1
 
                 # Update progress bar
-                progress_bar.set_description(f"Success {successes}, Success rate: {round(100*successes/(episode-5000), 2)}%, Epsilon: {round(self.epsilon, 2)}", refresh=True)
+                progress_bar.set_description(f"Success {successes}, Success rate: {round(100*successes/(episode-self.episode_number), 2)}%, Epsilon: {round(self.epsilon, 2)}", refresh=True)
                 progress_bar.set_postfix_str(f"Rewards: {rewards_list}", refresh=True)
 
                 # Every step we update replay memory and train main network

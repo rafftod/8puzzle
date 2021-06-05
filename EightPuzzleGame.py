@@ -297,7 +297,8 @@ class SlidePuzzle(gym.Env):
                 self.random()
             if event.key == pygame.K_a:
                 action = self.agent.play(self.format_tiles())
-                self.step(action)
+                reward = self.step(action)[1]
+                print(f"Reward: {reward}")
 
     def catchGameEvents(self, is_player, fpsclock, screen):
         """
