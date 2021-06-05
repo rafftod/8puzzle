@@ -40,7 +40,6 @@ class SlidePuzzle(gym.Env):
         self.speed = 3
 
         self.prev = None
-
         self.nb_move = 0
         self.nb_games = 0
 
@@ -77,6 +76,9 @@ class SlidePuzzle(gym.Env):
         # Observation space:
         # We encode the board as an array of 9 values, ordered as on the board
         self.observation_space = gym.spaces.Box(low=0, high=1, shape=(72,), dtype=np.int32)
+
+        # Create agent
+        self.agent = DQNAgent(self)
 
     def getBlank(self):
         """
@@ -258,6 +260,7 @@ class SlidePuzzle(gym.Env):
             self.draw_text(screen, "Move left : q", 40, 500, 160, 255, 255, 255, False)
             self.draw_text(screen, "Move right : d", 40, 500, 190, 255, 255, 255, False)
             self.draw_text(screen, "Random move : Space", 40, 500, 220, 255, 255, 255, False)
+            self.draw_text(screen, "AI move : a", 40, 500, 250, 255, 255, 255, False)
 
     def playEvents(self, event):
         """
@@ -291,6 +294,9 @@ class SlidePuzzle(gym.Env):
             # Move randomly a tile.
             if event.key == pygame.K_SPACE:
                 self.random()
+            if event.key == pygame.K_a:
+                action = self.agent.play(self.format_tiles())
+                self.step(action)
 
     def catchGameEvents(self, is_player, fpsclock, screen):
         """
@@ -313,7 +319,7 @@ class SlidePuzzle(gym.Env):
                 self.playEvents(event)
         return False
 
-    def playHumanGame(self, fpsclock, screen):
+    def playGame(self, fpsclock, screen):
         """
         Play the game.
         :param fpsclock: Track time.
@@ -558,7 +564,7 @@ def main():
             # Si non, retour au menu principal
             program.playAIGame(fpsclock, screen)
         else:
-            program.playHumanGame(fpsclock, screen)
+            program.playGame(fpsclock, screen)
         del program
 
     # program = SlidePuzzle((3, 3), training=True)  # program is also the gym environment
