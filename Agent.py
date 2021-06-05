@@ -59,6 +59,7 @@ class DQNAgent:
         except ValueError:
             self.episode_number = 0
 
+        self.episode = self.episode_number
         # Set epsilon to be able to restart training from where it left off
         self.epsilon = max(self.epsilon_decay**self.episode_number, self.epsilon_min)
 
@@ -165,7 +166,7 @@ class DQNAgent:
         # Iterate over episodes
         successes = 0 # keep track of successes
         progress_bar = tqdm(range(self.episode_number+1, 20000 + 1), ascii=True, unit='episodes')
-        for episode in progress_bar:
+        for self.episode in progress_bar:
             step = 1
 
             # Reset environment and get initial state
@@ -173,18 +174,12 @@ class DQNAgent:
 
             # Reset done flag and start iterating until episode ends
             done = False
-            difficulty = 10 # base difficulty
 
-            # Iterate over enivronment difficulties list (training difficulty increases as episode number grows)
-            for elem in self.env.difficulties:
-                if episode == elem[1]:
-                    self.epsilon = 1 # reset epsilon when changing difficulty
-                if episode < elem[1]:
-                    difficulty = elem[2]
-                    break
+            # Set env difficulty
+            self.env.bindDifficultyToEpisode(self.episode)
 
             rewards_list = []
-            while not done and step < difficulty:
+            while not done:
                 # Epsilon-greedy strategy
                 if np.random.random() > self.epsilon:
                     # Get action from Q table
@@ -201,7 +196,7 @@ class DQNAgent:
                     successes += 1
 
                 # Update progress bar
-                progress_bar.set_description(f"Success {successes}, Success rate: {round(100*successes/(episode-self.episode_number), 2)}%, Epsilon: {round(self.epsilon, 2)}", refresh=True)
+                progress_bar.set_description(f"Success {successes}, Success rate: {round(100*successes/(self.episode-self.episode_number), 2)}%, Epsilon: {round(self.epsilon, 2)}", refresh=True)
                 progress_bar.set_postfix_str(f"Rewards: {rewards_list}", refresh=True)
 
                 # Every step we update replay memory and train main network
@@ -213,8 +208,8 @@ class DQNAgent:
                 step += 1
 
             # Save model every 25 episodes
-            if episode % 25 == 0:
-                self.save_model(f"episode_{episode}.model")
+            if self.episode % 25 == 0:
+                self.save_model(f"episode_{self.episode}.model")
 
             # Decay epsilon
             self.epsilon *= self.epsilon_decay

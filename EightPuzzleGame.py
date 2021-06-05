@@ -58,8 +58,8 @@ class SlidePuzzle(gym.Env):
 
         self.difficulties = [(2, 500, 3), (4, 1500, 6), (6, 4000, 9), (8, 10000, 12),
                              (10, 20000, 15)]  # list of (nb_shuffles, episode_cap, nb_tries)
-        self.testing_difficulty = difficulty
-        self.max_tries = round(self.testing_difficulty*1.5)
+        self.difficulty = difficulty
+        self.max_tries = round(self.difficulty * 1.5)
         # gym part
 
         # Reward is :
@@ -388,8 +388,8 @@ class SlidePuzzle(gym.Env):
                          Otherwise, False.
         """
         screen.fill((0, 0, 0))
-        self.draw_text(screen, "Do you want to go back", 40, 400, 100, 255, 255, 255, True)
-        self.draw_text(screen, "to the main menu ?", 40, 400, 140, 255, 255, 255, True)
+        self.draw_text(screen, "Do you want to go exit", 40, 400, 100, 255, 255, 255, True)
+        self.draw_text(screen, "the game ?", 40, 400, 140, 255, 255, 255, True)
         self.draw_text(screen, "Press y for yes", 40, 400, 250, 255, 255, 255, True)
         self.draw_text(screen, "Press n for no (or escape)", 40, 400, 290, 255, 255, 255, True)
         pygame.display.flip()
@@ -461,18 +461,27 @@ class SlidePuzzle(gym.Env):
 
         return formatted_tiles
 
+    def bindDifficultyToEpisode(self, episode):
+        self.difficulty = 10  # base difficulty if there is no self.difficulties list
+        # Iterate over enivronment difficulties list (training difficulty increases as episode number grows)
+        for elem in self.difficulties:
+            if episode == elem[1]:
+                self.agent.epsilon = 1  # reset epsilon when changing difficulty
+            if episode < elem[1]:
+                self.difficulty = elem[0]
+                self.max_tries = elem[2]
+                break
+
     def step(self, action):
-        # action is the coordinates of the tiles we want to move
-        # pos_dict = {0:"Left", 1:"Right", 2:"Up", 3:"Down"}
-        # print(f"Blank pos: {self.tiles[8]}, Action: {pos_dict[action]} |", end = " ")
         moved_tile = self.adjacent()[action]
         if self.in_grid(moved_tile) and moved_tile != self.prev:
             self.switch(moved_tile)
             reward = 10 if self.isWin() else -self.manhattan_distance()
         else:
+            self.nb_move += 1 # still counts as a move (even if it is a failed one)
             reward = -50  # illegal move is punished
         obs = self.format_tiles()
-        done = self.isWin()
+        done = self.isWin() or self.isLost()
         return obs, reward, done, {"moves": self.nb_move}
 
     def reset(self):
@@ -480,13 +489,7 @@ class SlidePuzzle(gym.Env):
         gym environment reset
         """
         self.tiles = self.winCdt[:]
-        """for difficulty, episode_cap, _ in self.difficulties:
-            if self.nb_games < episode_cap:
-                self.shuffle(difficulty)
-                break
-        else:
-            self.shuffle()  # shuffle the board state"""
-        self.shuffle(difficulty=self.testing_difficulty)
+        self.shuffle(difficulty=self.difficulty)
 
         self.nb_move = 0  # reset number of moves
         self.prev = None
@@ -522,7 +525,7 @@ def main():
     pygame.display.set_caption('8-Puzzle game')
     screen = pygame.display.set_mode((800, 500))
     fpsclock = pygame.time.Clock()
-    program = SlidePuzzle((3, 3), 160, 5, difficulty=6)  # program is also the gym environment
+    program = SlidePuzzle((3, 3), 160, 5, difficulty=10)  # program is also the gym environment
     choice = program.selectPlayerMenu(fpsclock, screen)
     if choice == "AI":
         pygame.display.quit()
