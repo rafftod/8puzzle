@@ -415,7 +415,7 @@ class SlidePuzzle(gym.Env):
         screen.fill((0, 0, 0))
         self.rect = pygame.Rect(0, 0, self.gs[0] * (self.ts + self.ms) + self.ms,
                                 self.gs[1] * (self.ts + self.ms) + self.ms)
-        self.pic = pygame.transform.smoothscale(pygame.image.load('bluredImage.png'), self.rect.size)
+        self.pic = pygame.transform.smoothscale(pygame.image.load('blurredImage.png'), self.rect.size)
         screen.blit(self.pic, self.rect)
         if self.isWin():
             self.draw_text(screen, "You won !", 50, 250, 80, 0, 0, 0, True)
@@ -525,7 +525,7 @@ def main():
     pygame.display.set_caption('8-Puzzle game')
     screen = pygame.display.set_mode((800, 500))
     fpsclock = pygame.time.Clock()
-    program = SlidePuzzle((3, 3), 160, 5, difficulty=10)  # program is also the gym environment
+    program = SlidePuzzle((3, 3), 160, 5, difficulty=2)  # program is also the gym environment
     choice = program.selectPlayerMenu(fpsclock, screen)
     if choice == "AI":
         pygame.display.quit()
