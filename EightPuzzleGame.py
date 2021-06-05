@@ -18,7 +18,7 @@ FPS = 60
 
 
 class SlidePuzzle(gym.Env):
-    def __init__(self, gs, ts, ms, training=False):
+    def __init__(self, gs, ts, ms):
         """
         Init the game.
         
@@ -56,7 +56,6 @@ class SlidePuzzle(gym.Env):
             image.blit(text, ((ts - w) / 2, (ts - h) / 2))
             self.images += [image]
 
-        self.training = training
         self.difficulties = [(2, 500, 3), (4, 1500, 6), (6, 4000, 9), (8, 10000, 12),
                              (10, 20000, 15)]  # list of (nb_shuffles, episode_cap, nb_tries)
         self.testing_difficulty = 4
@@ -340,6 +339,7 @@ class SlidePuzzle(gym.Env):
             self.update(dt)
             finished = self.checkGameState(fpsclock, screen)
 
+
     def checkGameState(self, fpsclock, screen):
         """
         Check if the game is won. If it is won, we ask to the player if he want
@@ -354,6 +354,29 @@ class SlidePuzzle(gym.Env):
             if self.exitMenu(fpsclock, screen):
                 return True
         return False
+
+    def selectPlayerMenu(self, fpsclock, screen):
+        """
+        Ask to the player if he wants to play or if he wants an AI to play.
+        :param fpsclock: Track time.
+        :param screen:   The screen.
+        :return:         Return the choice of the player.
+        """
+        screen.fill((0, 0, 0))
+        self.draw_text(screen, "Press h to play", 40, 400, 150, 255, 255, 255, True)
+        self.draw_text(screen, "Press a to train the AI", 40, 400, 300, 255, 255, 255, True)
+        pygame.display.flip()
+        while True:
+            dt = fpsclock.tick(FPS)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.exit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_h:
+                        self.reset()
+                        return "human"
+                    if event.key == pygame.K_a:
+                        return "AI"
 
     def pauseMenu(self, fpsclock, screen):
         """
@@ -402,8 +425,7 @@ class SlidePuzzle(gym.Env):
         self.draw_text(screen, "Moves : " + str(self.nb_move), 40, 500, 10, 255, 255, 255, False)
         self.draw_text(screen, "Shortcuts", 40, 500, 40, 255, 255, 255, False)
         self.draw_text(screen, "Restart : y", 40, 500, 70, 255, 255, 255, False)
-        self.draw_text(screen, "Menu : m", 40, 500, 100, 255, 255, 255, False)
-        self.draw_text(screen, "Quit : n", 40, 500, 130, 255, 255, 255, False)
+        self.draw_text(screen, "Quit : n", 40, 500, 100, 255, 255, 255, False)
 
         pygame.display.flip()
         while True:
@@ -417,8 +439,6 @@ class SlidePuzzle(gym.Env):
                         return False
                     if event.key == pygame.K_n:
                         self.exit()
-                    if event.key == pygame.K_m:
-                        return True
 
     def exit(self):
         """
@@ -485,18 +505,10 @@ class SlidePuzzle(gym.Env):
             dist += abs(target[0] - tile[0]) + abs(target[1] - tile[1])
         return dist
 
-def launchWithGUI():
-    os.environ['SDL_VIDEO_CENTERED'] = '1'
-    pygame.display.set_caption('8-Puzzle game')
-    screen = pygame.display.set_mode((800, 500))
-    fpsclock = pygame.time.Clock()
-    while True:
-        program = SlidePuzzle((3, 3), 160, 5, training=False)  # program is also the gym environment
-        program.playGame(fpsclock, screen)
-        del program
+def launchWithGUI(program, fpsclock, screen):
+    program.playGame(fpsclock, screen)
 
-def trainAI():
-    program = SlidePuzzle((3, 3), 160, 5, training=True)  # program is also the gym environment
+def trainAI(program):
     program.nb_games = program.agent.episode_number
     program.agent.start()
 
@@ -505,9 +517,18 @@ def main():
     The main function to run the game.
     """
     pygame.init()
-    #launchWithGUI()
-    #trainAI()
-
+    os.environ['SDL_VIDEO_CENTERED'] = '1'
+    pygame.display.set_caption('8-Puzzle game')
+    screen = pygame.display.set_mode((800, 500))
+    fpsclock = pygame.time.Clock()
+    program = SlidePuzzle((3, 3), 160, 5)  # program is also the gym environment
+    choice = program.selectPlayerMenu(fpsclock, screen)
+    if choice == "AI":
+        pygame.display.quit()
+        trainAI(program)
+    elif choice == "human":
+        launchWithGUI(program, fpsclock, screen)
+    del program
 
 
 
