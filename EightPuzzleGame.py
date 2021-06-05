@@ -18,7 +18,7 @@ FPS = 60
 
 
 class SlidePuzzle(gym.Env):
-    def __init__(self, gs, ts, ms):
+    def __init__(self, gs, ts, ms, difficulty = 6):
         """
         Init the game.
         
@@ -58,7 +58,7 @@ class SlidePuzzle(gym.Env):
 
         self.difficulties = [(2, 500, 3), (4, 1500, 6), (6, 4000, 9), (8, 10000, 12),
                              (10, 20000, 15)]  # list of (nb_shuffles, episode_cap, nb_tries)
-        self.testing_difficulty = 4
+        self.testing_difficulty = difficulty
         self.max_tries = round(self.testing_difficulty*1.5)
         # gym part
 
@@ -521,7 +521,7 @@ def main():
     pygame.display.set_caption('8-Puzzle game')
     screen = pygame.display.set_mode((800, 500))
     fpsclock = pygame.time.Clock()
-    program = SlidePuzzle((3, 3), 160, 5)  # program is also the gym environment
+    program = SlidePuzzle((3, 3), 160, 5, difficulty=6)  # program is also the gym environment
     choice = program.selectPlayerMenu(fpsclock, screen)
     if choice == "AI":
         pygame.display.quit()
