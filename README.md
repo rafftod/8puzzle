@@ -24,7 +24,7 @@ This is used to get the prediction of the agent model.
 
 #### start()
 
-Starts the training over 10000 episodes.
+Starts the training over 20000 episodes (if no models are saved).
 
 ### EightPuzzleGame.py
 
