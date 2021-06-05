@@ -29,32 +29,31 @@ class SlidePuzzle(gym.Env):
         self.tiles_len = gs[0] * gs[1] - 1
         self.tiles = [(x, y) for y in range(gs[1]) for x in range(gs[0])]
         self.winCdt = [(x, y) for y in range(gs[1]) for x in range(gs[0])]
-
-        # actual pos on the screen
-        self.tilepos = [(x * (ts + ms) + ms, y * (ts + ms) + ms) for y in range(gs[1]) for x in range(gs[0])]
-
-        # the place they slide to
-        self.tilePOS = {(x, y): (x * (ts + ms) + ms, y * (ts + ms) + ms) for y in range(gs[1]) for x in range(gs[0])}
-
-        self.rect = pygame.Rect(0, 0, gs[0] * (ts + ms) + ms, gs[1] * (ts + ms) + ms)
-        self.speed = 3
-
-        self.prev = None
-
         self.nb_move = 0
         self.nb_games = 0
+        self.prev = None
+        self.agent = None
+        if(not training):
+            # actual pos on the screen
+            self.tilepos = [(x * (ts + ms) + ms, y * (ts + ms) + ms) for y in range(gs[1]) for x in range(gs[0])]
 
-        self.pic = pygame.transform.smoothscale(pygame.image.load('image.png'), self.rect.size)
+            # the place they slide to
+            self.tilePOS = {(x, y): (x * (ts + ms) + ms, y * (ts + ms) + ms) for y in range(gs[1]) for x in range(gs[0])}
 
-        self.images = []
-        font = pygame.font.Font(None, 120)
-        for i in range(self.tiles_len):
-            x, y = self.tilepos[i]
-            image = self.pic.subsurface(x, y, ts, ts)
-            text = font.render(str(i + 1), 2, (0, 0, 0))
-            w, h = text.get_size()
-            image.blit(text, ((ts - w) / 2, (ts - h) / 2))
-            self.images += [image]
+            self.rect = pygame.Rect(0, 0, gs[0] * (ts + ms) + ms, gs[1] * (ts + ms) + ms)
+            self.speed = 3
+
+            self.pic = pygame.transform.smoothscale(pygame.image.load('image.png'), self.rect.size)
+
+            self.images = []
+            font = pygame.font.Font(None, 120)
+            for i in range(self.tiles_len):
+                x, y = self.tilepos[i]
+                image = self.pic.subsurface(x, y, ts, ts)
+                text = font.render(str(i + 1), 2, (0, 0, 0))
+                w, h = text.get_size()
+                image.blit(text, ((ts - w) / 2, (ts - h) / 2))
+                self.images += [image]
 
         self.training = training
         self.difficulties = [(2, 500, 3), (4, 1500, 6), (6, 4000, 9), (8, 10000, 12), (10, 20000, 15)] # list of (nb_shuffles, episode_cap, nb_tries)
@@ -446,7 +445,7 @@ class SlidePuzzle(gym.Env):
         """
         finished = False
         wantToQuitGame = False
-        agent = DQNAgent(self)
+        self.agent = DQNAgent(self)
         last_play = time.time()
         self.reset()
         print(self.tiles)
@@ -460,7 +459,7 @@ class SlidePuzzle(gym.Env):
             wantToQuitGame = self.catchGameEvents(False, fpsclock, screen)
 
             # last_play = time.time()
-            action = agent.play(current_state)
+            action = self.agent.play(current_state)
             new_state, reward, done, _ = self.step(action)
             if reward == -50:
                 self.random()
@@ -472,9 +471,9 @@ class SlidePuzzle(gym.Env):
             finished = self.checkGameState(fpsclock, screen)
 
     def trainAI(self):
-        agent = DQNAgent(self)
-        self.nb_games = agent.episode_number
-        agent.start()
+        self.agent = DQNAgent(self)
+        self.nb_games = self.agent.episode_number
+        self.agent.start()
 
     def exit(self):
         """
@@ -496,19 +495,29 @@ class SlidePuzzle(gym.Env):
 
         return formatted_tiles
 
-    def step(self, action):
+    def step(self, action, step_n):
         # action is the coordinates of the tiles we want to move
         # pos_dict = {0:"Left", 1:"Right", 2:"Up", 3:"Down"}
         # print(f"Blank pos: {self.tiles[8]}, Action: {pos_dict[action]} |", end = " ")
+        max_tries = 15  # base difficulty
+
+        # Iterate over enivronment difficulties list (training difficulty increases as episode number grows)
+        for elem in self.difficulties:
+            if self.nb_games == elem[1]:
+                self.agent.setEpsilon(1)  # reset epsilon when changing difficulty
+            if self.nb_games < elem[1]:
+                max_tries = elem[2]
+                break
+
         moved_tile = self.adjacent()[action]
         if self.in_grid(moved_tile) and moved_tile != self.prev:
             self.switch(moved_tile)
             reward = 10 if self.isWin() else -self.manhattan_distance()
         else:
             reward = -50  # illegal move is punished
-        print(reward)
+
         obs = self.format_tiles()
-        done = self.isWin()
+        done = self.isWin() or step_n > max_tries
         return obs, reward, done, {"moves": self.nb_move}
 
     def reset(self):
@@ -548,29 +557,29 @@ def main():
     """
     The main function to run the game.
     """
-    pygame.init()
-    os.environ['SDL_VIDEO_CENTERED'] = '1'
-    pygame.display.set_caption('8-Puzzle game')
-    screen = pygame.display.set_mode((800, 500))
-    fpsclock = pygame.time.Clock()
-    while True:
-        program = SlidePuzzle((3, 3), 160, 5, training=False)  # program is also the gym environment
-        choice = program.selectPlayerMenu(fpsclock, screen)
-        if choice == "AI":
-            # Demander si le joueur veut jouer sur un modèle entrainé ou pas.
-            # Si non, créer un nouveau fichier
-            # Si oui, choisir un choisir un fichier.
-            # Demander s'il faut  générer aléatoirement un board ou définir lui même un board
-            # Fin de partie, est ce que l'ia rejoue ou pas ?
-            # Si oui, Demander s'il faut  générer aléatoirement un board ou définir lui même un board
-            # Si non, retour au menu principal
-            program.playAIGame(fpsclock, screen)
-        else:
-            program.playHumanGame(fpsclock, screen)
-        del program
+    # pygame.init()
+    # os.environ['SDL_VIDEO_CENTERED'] = '1'
+    # pygame.display.set_caption('8-Puzzle game')
+    # screen = pygame.display.set_mode((800, 500))
+    # fpsclock = pygame.time.Clock()
+    # while True:
+    #     program = SlidePuzzle((3, 3), 160, 5, training=False)  # program is also the gym environment
+    #     choice = program.selectPlayerMenu(fpsclock, screen)
+    #     if choice == "AI":
+    #         # Demander si le joueur veut jouer sur un modèle entrainé ou pas.
+    #         # Si non, créer un nouveau fichier
+    #         # Si oui, choisir un choisir un fichier.
+    #         # Demander s'il faut  générer aléatoirement un board ou définir lui même un board
+    #         # Fin de partie, est ce que l'ia rejoue ou pas ?
+    #         # Si oui, Demander s'il faut  générer aléatoirement un board ou définir lui même un board
+    #         # Si non, retour au menu principal
+    #         program.playAIGame(fpsclock, screen)
+    #     else:
+    #         program.playHumanGame(fpsclock, screen)
+    #     del program
 
-    # program = SlidePuzzle((3, 3), training=True)  # program is also the gym environment
-
+    program = SlidePuzzle((3, 3), 160, 5, training=True)  # program is also the gym environment
+    program.trainAI()
     # program.playAIGame()
 
     # del program

@@ -63,6 +63,8 @@ class DQNAgent:
         self.epsilon = max(self.epsilon_decay**self.episode_number, self.epsilon_min)
 
 
+    def setEpsilon(self, value):
+        self.epsilon = value
 
     def create_model(self) -> tf.keras.models.Sequential:
         """
@@ -174,18 +176,10 @@ class DQNAgent:
 
             # Reset done flag and start iterating until episode ends
             done = False
-            difficulty = 10 # base difficulty
 
-            # Iterate over enivronment difficulties list (training difficulty increases as episode number grows)
-            for elem in self.env.difficulties:
-                if episode == elem[1]:
-                    self.epsilon = 1 # reset epsilon when changing difficulty
-                if episode < elem[1]:
-                    difficulty = elem[2]
-                    break
 
             rewards_list = []
-            while not done and step < difficulty:
+            while not done:
                 # Epsilon-greedy strategy
                 if np.random.random() > self.epsilon:
                     # Get action from Q table
@@ -194,7 +188,7 @@ class DQNAgent:
                     # Get random action
                     action = np.random.randint(0, self.action_space_size)
 
-                new_state, reward, done, _ = self.env.step(action)
+                new_state, reward, done, _ = self.env.step(action, step)
                 rewards_list.append(reward)
 
                 # Keep track of successes
@@ -202,7 +196,7 @@ class DQNAgent:
                     successes += 1
 
                 # Update progress bar
-                progress_bar.set_description(f"Success {successes}, Success rate: {round(100*successes/(episode-5000), 2)}%, Epsilon: {round(self.epsilon, 2)}", refresh=True)
+                progress_bar.set_description(f"Success {successes}, Success rate: {round(100*successes/(episode-self.episode_number), 2)}%, Epsilon: {round(self.epsilon, 2)}", refresh=True)
                 progress_bar.set_postfix_str(f"Rewards: {rewards_list}", refresh=True)
 
                 # Every step we update replay memory and train main network
