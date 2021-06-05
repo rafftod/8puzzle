@@ -58,7 +58,7 @@ class SlidePuzzle(gym.Env):
 
         self.training = training
         self.difficulties = [(2, 500, 3), (4, 1500, 6), (6, 4000, 9), (8, 10000, 12), (10, 20000, 15)] # list of (nb_shuffles, episode_cap, nb_tries)
-        self.testing_difficulty = 10
+        self.testing_difficulty = 4
         # gym part
 
         # Reward is :
@@ -290,8 +290,7 @@ class SlidePuzzle(gym.Env):
                         self.switch(tile)
             # Move randomly a tile.
             if event.key == pygame.K_SPACE:
-                for i in range(1000):
-                    self.random()
+                self.random()
 
     def catchGameEvents(self, is_player, fpsclock, screen):
         """
@@ -429,7 +428,6 @@ class SlidePuzzle(gym.Env):
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_y:
                         self.reset()
-                        self.nb_move = 0
                         return False
                     if event.key == pygame.K_n:
                         self.exit()
@@ -449,8 +447,8 @@ class SlidePuzzle(gym.Env):
         last_play = time.time()
         self.reset()
         print(self.tiles)
-        current_state = self.format_tiles()
         while not finished and not wantToQuitGame:
+            current_state = self.format_tiles()
             dt = fpsclock.tick(FPS)
             screen.fill((0, 0, 0))
             self.draw(screen)
