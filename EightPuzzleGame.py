@@ -447,10 +447,6 @@ class SlidePuzzle(gym.Env):
         """
         sys.exit()
 
-    """
-    gym environment functions
-    """
-
     def format_tiles(self):
         formatted_tiles = [0] * 72
         for i in range(3):
@@ -462,6 +458,10 @@ class SlidePuzzle(gym.Env):
         return formatted_tiles
 
     def bindDifficultyToEpisode(self, episode):
+        """
+        Checks the self.difficulties list to update the difficulty depending on the episode number of the training session
+        @param episode: episode number
+        """
         self.difficulty = 10  # base difficulty if there is no self.difficulties list
         # Iterate over enivronment difficulties list (training difficulty increases as episode number grows)
         for elem in self.difficulties:
@@ -473,6 +473,11 @@ class SlidePuzzle(gym.Env):
                 break
 
     def step(self, action):
+        """
+        gym environment step
+        @param action: action to take (up, down, left, right)
+        @return: state, reward, done (true if game is won or lost)
+        """
         moved_tile = self.adjacent()[action]
         if self.in_grid(moved_tile) and moved_tile != self.prev:
             self.switch(moved_tile)
@@ -487,6 +492,7 @@ class SlidePuzzle(gym.Env):
     def reset(self):
         """
         gym environment reset
+        @return: state
         """
         self.tiles = self.winCdt[:]
         self.shuffle(difficulty=self.difficulty)
@@ -504,6 +510,10 @@ class SlidePuzzle(gym.Env):
         pass
 
     def manhattan_distance(self):
+        """
+        Computes the manhattan distance of current board with target board
+        @return: distance
+        """
         dist = 0
         for target, tile in zip(self.winCdt[:-1], self.tiles[:-1]):
             dist += abs(target[0] - tile[0]) + abs(target[1] - tile[1])
@@ -525,7 +535,8 @@ def main():
     pygame.display.set_caption('8-Puzzle game')
     screen = pygame.display.set_mode((800, 500))
     fpsclock = pygame.time.Clock()
-    program = SlidePuzzle((3, 3), 160, 5, difficulty=2)  # program is also the gym environment
+    program = SlidePuzzle((3, 3), 160, 5, difficulty=10)  # program is also the gym environment
+
     choice = program.selectPlayerMenu(fpsclock, screen)
     if choice == "AI":
         pygame.display.quit()

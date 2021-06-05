@@ -87,14 +87,20 @@ class DQNAgent:
         print(model.summary()) # Make sure everything works
         return model
 
-    # Adds step's data to a memory replay array
-    # (observation space, action, reward, new observation space, done)
+
     def update_replay_memory(self, transition):
+        """
+        Adds step's data to a memory replay array
+        (observation space, action, reward, new observation space, done)
+        @param transition: transition
+        """
         self.memory.append(transition)
 
-    # Trains main network every step during episode
     def train(self, terminal_state):
-
+        """
+        Trains main network every step during episode
+        @param terminal_state: if state is terminal (i.e. if episode has ended)
+        """
         # Start training only if certain number of samples is already saved
         if len(self.memory) < MIN_REPLAY_MEMORY_SIZE:
             return
@@ -114,7 +120,7 @@ class DQNAgent:
         X = []
         y = []
 
-        # Now we need to enumerate our batches
+        # Enumerate transitions from batch to train the whole minibatch
         for index, (current_state, action, reward, new_current_state, done) in enumerate(minibatch):
 
             # If not a terminal state, get new q from future q and reward, otherwise only from reward
@@ -158,11 +164,19 @@ class DQNAgent:
         self.target_model = tf.keras.models.load_model(filename)
 
     def play(self, current_state):
+        """
+        Asks agent to predict a move
+        @param current_state: board state
+        @return: action to take
+        """
         action = np.argmax(self.get_qs(current_state))
         return action
 
 
     def start(self):
+        """
+        Starts the training process
+        """
         # Iterate over episodes
         successes = 0 # keep track of successes
         progress_bar = tqdm(range(self.episode_number+1, 20000 + 1), ascii=True, unit='episodes')
@@ -175,7 +189,7 @@ class DQNAgent:
             # Reset done flag and start iterating until episode ends
             done = False
 
-            # Set env difficulty
+            # Set environment difficulty
             self.env.bindDifficultyToEpisode(self.episode)
 
             rewards_list = []
